@@ -5,12 +5,10 @@ import java.awt.Component;
 import java.awt.Container;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,11 +44,11 @@ import com.change_vision.jude.api.inf.view.IEntitySelectionEvent;
 import com.change_vision.jude.api.inf.view.IEntitySelectionListener;
 import com.change_vision.jude.api.inf.view.IProjectViewManager;
 
-public class View 
-extends 
+public class View
+extends
 JPanel
-implements 
-IPluginExtraTabView, 
+implements
+IPluginExtraTabView,
 IEntitySelectionListener,
 IDiagramEditorSelectionListener,
 ProjectEventListener,
@@ -62,7 +60,7 @@ ListSelectionListener
 	static final Logger logger = Logger.getLogger(View.class.getName());
 	static {
 		ConsoleHandler consoleHandler = new ConsoleHandler();
-		consoleHandler.setLevel(Level.CONFIG);      
+		consoleHandler.setLevel(Level.CONFIG);
 		logger.addHandler(consoleHandler);
 		logger.setUseParentHandlers(false);
 	}
@@ -82,7 +80,7 @@ ListSelectionListener
 
 	private static final long serialVersionUID = 1L;
 	private transient ProjectAccessor projectAccessor = null;
-	private transient IDiagramViewManager diagramViewManager = null; 
+	private transient IDiagramViewManager diagramViewManager = null;
 	private transient IProjectViewManager projectViewManager = null;
 	private transient UseCaseDiagramEditor usecaseDiagramEditor = null;
 
@@ -118,17 +116,17 @@ ListSelectionListener
 	}
 
 	private void addListeners(){
-		//diagramViewManager.addDiagramEditorSelectionListener(this);
+		diagramViewManager.addDiagramEditorSelectionListener(this);
 		diagramViewManager.addEntitySelectionListener(this);
-		//projectViewManager.addEntitySelectionListener(this);
-		//projectAccessor.addProjectEventListener(this);
+		projectViewManager.addEntitySelectionListener(this);
+		projectAccessor.addProjectEventListener(this);
 	}
 
 	private void removeListeners(){
-		//diagramViewManager.removeDiagramEditorSelectionListener(this);
-		diagramViewManager.removeEntitySelectionListener(this);	
-		//projectViewManager.removeEntitySelectionListener(this);
-		//projectAccessor.removeProjectEventListener(this);
+		diagramViewManager.removeDiagramEditorSelectionListener(this);
+		diagramViewManager.removeEntitySelectionListener(this);
+		projectViewManager.removeEntitySelectionListener(this);
+		projectAccessor.removeProjectEventListener(this);
 	}
 
 	JList<String> textArea = null;
@@ -148,16 +146,17 @@ ListSelectionListener
 	JButton addButton    = new JButton(VIEW_BUNDLE.getString("Button.Add"));
 	JButton deleteButton = new JButton(VIEW_BUNDLE.getString("Button.Del"));
 
-	IUseCaseDiagram ingaDiagram = null;
-	List<IPresentation> ingaPresentationList = new ArrayList<>();
-	List<INodePresentation> ingaCreatedPresentationList = new ArrayList<>();
+	transient IUseCaseDiagram targetDiagram = null;
+	transient IUseCaseDiagram ingaDiagram = null;
+	transient List<IPresentation> ingaPresentationList = new ArrayList<>();
+	transient List<INodePresentation> ingaCreatedPresentationList = new ArrayList<>();
 
 	private Container createControllerPane() {
-		
+
 		// ボタンの初期状態
 		addButton.setEnabled(true);
 		deleteButton.setEnabled(false);
-		
+
 		// 因果ループ追加ボタン
 		addButton.addActionListener(e -> {
 			try {
@@ -184,21 +183,25 @@ ListSelectionListener
 				TransactionManager.abortTransaction();
 				ex.printStackTrace();
 			}
-			
+
+			showInga(new ILinkPresentation[] {});
 			diagramViewManager.open(ingaDiagram);
 			diagramViewManager.unselectAll();
-			
+
 			addButton.setEnabled(false);
 			deleteButton.setEnabled(true);
 		});
 
 		deleteButton.addActionListener(e -> {
+			targetDiagram = null;
+
 			ingaDiagram = null;
 			ingaPresentationList = new ArrayList<>();
 			ingaCreatedPresentationList = new ArrayList<>();
+
 			diagramLabel.setText("");
 			ingaDiagramLabel.setText("");
-			
+
 			addButton.setEnabled(true);
 			deleteButton.setEnabled(false);
 		});
@@ -224,6 +227,10 @@ ListSelectionListener
 	}
 
 	private void showInga(IPresentation[] links) {
+		if (links == null) {
+			return;
+		}
+
 		if(ingaDiagram == null) {
 			return;
 		}
@@ -256,7 +263,7 @@ ListSelectionListener
 					nnp = ude.createNodePresentation(np.getModel(), np.getLocation());
 					ingaCreatedPresentationList.add(nnp);
 				} else {
-					System.out.println("np type=" + np.getType());
+					logger.log(Level.FINE, () -> "np type=" + np.getType());
 				}
 			}
 
@@ -271,7 +278,7 @@ ListSelectionListener
 					if(linkPresentationTypes.contains(lp.getType())) {
 						ILinkPresentation nlp = ude.createLinkPresentation(lp.getModel(), source.get(), target.get());
 					} else {
-						System.out.println("lp type=" + lp.getType());
+						logger.log(Level.FINE, () -> "lp type=" + lp.getType());
 					}
 				}
 			}
@@ -312,8 +319,12 @@ ListSelectionListener
 	 */
 	private void updateDiagramView(){
 
-		// 因果分析中は更新をスキップ
+		// 因果分析中はループのみを表示
 		if(ingaDiagram != null){
+			messagePresentation = UseCaseDiagramReader.getCyclicPathMessagePresentation(targetDiagram);
+			// メッセージのリスト化
+			textArea.setListData(messagePresentation.getMessagesArray());
+
 			return;
 		}
 
@@ -324,30 +335,31 @@ ListSelectionListener
 			// メッセージとプレゼンテーションをリセット
 			messagePresentation = null;
 
-			// 選択しているユースケース図を解析して読み上げる		
+			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
-				usecaseDiagramEditor.setDiagram(diagram);
-				messagePresentation = UseCaseDiagramReader.getMessagePresentation((IUseCaseDiagram)diagram, diagramViewManager, usecaseDiagramEditor);
+				targetDiagram = (IUseCaseDiagram)diagram;
+				usecaseDiagramEditor.setDiagram(targetDiagram);
+				messagePresentation = UseCaseDiagramReader.getMessagePresentation(targetDiagram);
+				// メッセージのリスト化
+				textArea.setListData(messagePresentation.getMessagesArray());
 			}
 			// それ以外はなにもしない
 			else {
 				// no action
 			}
 
-			// メッセージのリスト化
-			textArea.setListData(messagePresentation.getMessagesArray());
-
 		}catch(Exception ex){
 			logger.log(Level.WARNING, ex.getMessage());
 		}
 	}
 
-	IDiagram selectedDiagram = null;
-	IPresentation[] selectedPresentations = null;
+	transient IDiagram selectedDiagram = null;
+	transient IPresentation[] selectedPresentations = null;
 
 	// IPluginExtraTabView
 	@Override
 	public void addSelectionListener(ISelectionListener listener) {
+		// no action
 	}
 
 	@Override
@@ -386,22 +398,12 @@ ListSelectionListener
 		int index = textArea.getSelectedIndex();
 		logger.log(Level.FINE, () -> "textArea selected index=" + index);
 
-		if(index < 0){ // 選択項目がない場合は-1なので処理しない
+		if(index < 0){ // 選択項目がない場合（indexは-1）は処理しない
 			return;
 		}
 
-		if(messagePresentation.presentations != null){
-			try {
-				IPresentation[] sps = messagePresentation.presentations.get(index); 
-				if(sps != null){
-					showInga(sps);
-				}
-			}catch(Exception ex){
-				TransactionManager.abortTransaction();
-				logger.log(Level.WARNING, ex.getMessage());
-			}
-		}
-
+		// 選択項目のPresentationを因果として表示する
+		showInga(messagePresentation.presentations.get(index));
 	}
 
 	@Override

@@ -10,7 +10,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import com.change_vision.jude.api.inf.editor.UseCaseDiagramEditor;
 import com.change_vision.jude.api.inf.exception.InvalidUsingException;
 import com.change_vision.jude.api.inf.model.IAssociation;
 import com.change_vision.jude.api.inf.model.IAttribute;
@@ -19,8 +18,8 @@ import com.change_vision.jude.api.inf.model.INamedElement;
 import com.change_vision.jude.api.inf.model.IUseCase;
 import com.change_vision.jude.api.inf.model.IUseCaseDiagram;
 import com.change_vision.jude.api.inf.presentation.ILinkPresentation;
+import com.change_vision.jude.api.inf.presentation.INodePresentation;
 import com.change_vision.jude.api.inf.presentation.IPresentation;
-import com.change_vision.jude.api.inf.view.IDiagramViewManager;
 
 /**
  * ユースケース図をインがループとして解析するる
@@ -33,7 +32,7 @@ public class UseCaseDiagramReader {
 	static final Logger logger = Logger.getLogger(UseCaseDiagramReader.class.getName());
 	static {
 		ConsoleHandler consoleHandler = new ConsoleHandler();
-		consoleHandler.setLevel(Level.CONFIG);      
+		consoleHandler.setLevel(Level.CONFIG);
 		logger.addHandler(consoleHandler);
 		logger.setUseParentHandlers(false);
 	}
@@ -45,7 +44,7 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * Link 
+	 * Link
 	 */
 	static class Link {
 		ILinkPresentation p;
@@ -62,7 +61,7 @@ public class UseCaseDiagramReader {
 
 		public String toString(){
 			if(positive){
-				return "➚「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";				
+				return "➚「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
 			} else {
 				return "➘「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
 			}
@@ -87,9 +86,22 @@ public class UseCaseDiagramReader {
 	/**
 	 * CyclicPath
 	 */
-	@SuppressWarnings("serial")
 	static class CyclicPath extends ArrayList<Link> implements List<Link> {
 
+		public CyclicPath() {
+			super();
+		}
+
+		public CyclicPath(CyclicPath cp) {
+			super();
+			cp.stream().forEach(this::add);
+		}
+
+		public CyclicPath(CyclicPath cp, Link link) {
+			super();
+			cp.stream().forEach(this::add);
+			this.add(link);
+		}
 
 		public String getDescription(){
 			StringBuilder builder = new StringBuilder();
@@ -105,17 +117,20 @@ public class UseCaseDiagramReader {
 					} else {
 						builder.append(" -(-)-> ");
 					}
-				} 
+				}
 			}
 			return builder.toString();
 		}
 
 		public boolean isPositive() {
-			boolean positive = true;
-			for(Link link : this){
-				positive = positive == link.positive;
-			}
-			return positive;
+			return this.stream()
+					.reduce(true,
+							(ret,  link) -> ret && link.positive,
+							(ret1, ret2) -> ret1 && ret2);
+		}
+
+		public String toString() {
+			return this.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->"));
 		}
 
 	}
@@ -149,7 +164,7 @@ public class UseCaseDiagramReader {
 	 */
 	public Set<Link> getPositiveLinks(){
 
-		Set<Link> us = new HashSet<>();
+		Set<Link> links = new HashSet<>();
 
 		try {
 			Arrays.stream(diagram.getPresentations())
@@ -168,14 +183,14 @@ public class UseCaseDiagramReader {
 					to   = attrs[1].getType();
 				}
 				if(from != null && to != null){
-					us.add(new Link((ILinkPresentation) p, from, to, true));
+					links.add(new Link((ILinkPresentation) p, from, to, true));
 				}
 			});
 		}catch(Exception e){
 			logger.log(Level.WARNING, e.getMessage());
 		}
 
-		return us;
+		return links;
 	}
 
 	/**
@@ -184,20 +199,20 @@ public class UseCaseDiagramReader {
 	 */
 	public Set<Link> getNegativeLinks(){
 
-		Set<Link> path = new HashSet<>();
+		Set<Link> links = new HashSet<>();
 
 		try {
 			Arrays.stream(diagram.getPresentations())
 			.filter(p -> p.getModel() instanceof IDependency)
 			.forEach(p -> {
 				IDependency d = (IDependency)p.getModel();
-				path.add(new Link((ILinkPresentation) p, d.getClient(), d.getSupplier(), false));
+				links.add(new Link((ILinkPresentation) p, d.getClient(), d.getSupplier(), false));
 			});
 		} catch (InvalidUsingException e) {
 			logger.log(Level.WARNING, e.getMessage());
 		}
 
-		return path;
+		return links;
 	}
 
 	/**
@@ -208,101 +223,98 @@ public class UseCaseDiagramReader {
 		return getPositiveLinks().size() + getNegativeLinks().size();
 	}
 
-	private static List<IPresentation> linePresentations = new ArrayList<>();
-
-	public static MessagePresentation getMessagePresentation(IUseCaseDiagram diagram, IDiagramViewManager dvm, UseCaseDiagramEditor usecaseModelEditor) {
+	public static MessagePresentation getMessagePresentation(IUseCaseDiagram diagram) {
 		MessagePresentation mps = new MessagePresentation();
 
 		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
+		Set<Link> positiveLinks = udr.getPositiveLinks();
+		Set<Link> negativeLinks = udr.getNegativeLinks();
 
-		Set<IPresentation> pusecases = udr.getUseCases();
-		Set<Link> positiveLinks = udr.getPositiveLinks();	
-		Set<Link> negativeLinks = udr.getNegativeLinks();		
-
-		// ユースケース図の情報表示
-		/*
-		mps.add("[" + diagram.getName() + "]ユースケース図には、「" + pusecases.size() + "個」のユースケースがあります", null);
-		mps.add("[" + diagram.getName() + "]ユースケース図には、「" + positiveLinks.size() + "個」の正リンクがあります", null);
-		mps.add("[" + diagram.getName() + "]ユースケース図には、「" + negativeLinks.size() + "個」の負リンクがあります", null);
-		mps.add("=====", null);
-		 */
-		
 		Set<Link> links = new HashSet<>();
 		links.addAll(positiveLinks);
 		links.addAll(negativeLinks);
 
-		recordLink(mps, pusecases, links);
-		recordCyclicPath(mps, pusecases, links);
+		recordCyclicPath(mps, links);
+		mps.add("=====", null);
+		recordLink(mps, links);
 
 		return mps;
 	}
-	
-	private static void recordLink(MessagePresentation mps, Set<IPresentation> pusecases, Set<Link> links){
+
+	public static MessagePresentation getCyclicPathMessagePresentation(IUseCaseDiagram diagram) {
+		MessagePresentation mps = new MessagePresentation();
+
+		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
+		Set<Link> positiveLinks = udr.getPositiveLinks();
+		Set<Link> negativeLinks = udr.getNegativeLinks();
+
+		Set<Link> links = new HashSet<>();
+		links.addAll(positiveLinks);
+		links.addAll(negativeLinks);
+
+		recordCyclicPath(mps, links);
+
+		return mps;
+	}
+
+	private static void recordLink(MessagePresentation mps, Set<Link> links){
 		// リンクを表示
 		for(Link link : links){
-			mps.add(link.toString(), new IPresentation[]{link.p});	
+			mps.add(link.toString(), new IPresentation[]{link.p});
 		}
 	}
 
-	private static void recordCyclicPath(MessagePresentation mps, Set<IPresentation> pusecases, Set<Link> links) {
-		List<CyclicPath> cyclicPaths = new ArrayList<>();
-		for(IPresentation p : pusecases){
-			logger.log(Level.FINE, "##### p " + p.getLabel());
-
-			IUseCase uc = (IUseCase)p.getModel();
-			CyclicPath cyclicPath = new CyclicPath();
-			getCyclicPaths(uc, links, cyclicPath, cyclicPaths);
+	private static void recordCyclicPath(MessagePresentation mps, Set<Link> links) {
+		List<CyclicPath> cps = new ArrayList<>();
+		for(Link link : links) {
+			INodePresentation node = link.p.getSource();
+			if(node.getType().equals("UseCase")) {
+				logger.log(Level.FINE, () -> "##### p " + node.getLabel());
+				IUseCase uc = (IUseCase)node.getModel();
+				getCyclicPaths(uc, links, new CyclicPath(), cps);
+			}
 		}
 
-		for(CyclicPath path : cyclicPaths){
-			mps.add(path.getDescription(), path.stream().map(link -> (IPresentation)link.p).toArray(IPresentation[]::new));
-		}			
+		for(CyclicPath cp : cps){
+			mps.add(cp.getDescription(), cp.stream().map(link -> (IPresentation)link.p).toArray(IPresentation[]::new));
+		}
 	}
 
 	private static void getCyclicPaths(
-			IUseCase currentUC, 
-			Set<Link> links, 
-			CyclicPath cyclicPath, 
+			IUseCase currentUC,
+			Set<Link> links,
+			CyclicPath cyclicPath,
 			List<CyclicPath> cyclicPaths
 			){
 
-		if(cyclicPaths.stream().anyMatch(cp -> cp.contains(currentUC))){
-			return;
-		}
-
 		links.stream()
-		.filter(a -> a.from == currentUC)
-		.forEach(a -> {
-			logger.log(Level.FINE, "##### link " + a.from + "->" + a.to);
+		.filter(link -> link.from == currentUC)
+		.forEach(link -> {
+			logger.log(Level.FINE, () -> "##### link " + link.from + "->" + link.to);
 
-			if(! cyclicPath.isEmpty() && cyclicPath.get(0).from == a.to){
-				CyclicPath as = new CyclicPath();
-				boolean start = false;
-				for(Link p : cyclicPath){
-					if(start || p.from == a.to){
-						as.add(p);
-						start = true;
-					}
-				}
-				as.add(a);
-				if(cyclicPaths.stream().anyMatch(path -> new HashSet<Link>(path).equals(new HashSet<Link>(as)))){
-					logger.log(Level.FINE, "duplicated cycle " + as.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->")));					
+			// 最初のノードに戻ってループした
+			if(! cyclicPath.isEmpty() && cyclicPath.get(0).from == link.to){
+				CyclicPath newcp = new CyclicPath(cyclicPath, link);
+
+				if(cyclicPaths.stream()
+						.anyMatch(cp -> new HashSet<Link>(cp).equals(new HashSet<Link>(newcp)))){
+					logger.log(Level.FINE, () -> "existed cycle " + newcp);
 				} else {
-					logger.log(Level.FINE, "cycle " + as.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->")));
-					cyclicPaths.add(as);
+					logger.log(Level.FINE, () -> "new cycle " + newcp);
+					cyclicPaths.add(newcp);
 				}
 
-			} else if(cyclicPath.stream().anyMatch(cp -> cp.from == a.to)) {
+			}
+			// ループしたが途中にぶつかった
+			else if(cyclicPath.stream().anyMatch(cp -> cp.from == link.to)) {
 				logger.log(Level.FINE, "cycle but not back to start point");
 
-			} else {
+			}
+			// ループしていないので、次のリンクへ進む
+			else {
 				logger.log(Level.FINE, "not cycle go next");
-				CyclicPath path = new CyclicPath();
-				for(Link p : cyclicPath){
-					path.add(p);
-				}
-				path.add(a);
-				getCyclicPaths((IUseCase)a.to, links, path, cyclicPaths);
+				CyclicPath cp = new CyclicPath(cyclicPath, link);
+				getCyclicPaths((IUseCase)link.to, links, cp, cyclicPaths);
 			}
 
 		});

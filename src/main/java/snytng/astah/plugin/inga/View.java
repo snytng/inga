@@ -451,10 +451,20 @@ ListSelectionListener
 		}
 
 		// 選択項目のPresentationを因果として表示する
-		createIngaLink(messagePresentation.presentations.get(index));
+		// 因果ループ作成中
+		if (ingaDiagram == null) {
+			if (messagePresentation != null) {
+				IPresentation[] links = messagePresentation.presentations.get(index);
+				diagramViewManager.select(links);
+			}
+		}
+		// 因果ループ解析結果表示中
+		else {
+			createIngaLink(messagePresentation.presentations.get(index));
 
-		diagramViewManager.open(ingaDiagram);
-		diagramViewManager.unselectAll();
+			diagramViewManager.open(ingaDiagram);
+			diagramViewManager.unselectAll();
+		}
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import javax.swing.event.ListSelectionListener;
 import com.change_vision.jude.api.inf.AstahAPI;
 import com.change_vision.jude.api.inf.editor.TransactionManager;
 import com.change_vision.jude.api.inf.editor.UseCaseDiagramEditor;
+import com.change_vision.jude.api.inf.exception.InvalidEditingException;
 import com.change_vision.jude.api.inf.exception.InvalidUsingException;
 import com.change_vision.jude.api.inf.model.IDiagram;
 import com.change_vision.jude.api.inf.model.IUseCaseDiagram;
@@ -149,7 +150,8 @@ ListSelectionListener
 	transient IUseCaseDiagram targetDiagram = null;
 	transient IUseCaseDiagram ingaDiagram = null;
 	transient List<IPresentation> ingaPresentationList = new ArrayList<>();
-	transient List<INodePresentation> ingaCreatedPresentationList = new ArrayList<>();
+	transient List<INodePresentation> ingaCreatedNodePresentationList = new ArrayList<>();
+	transient List<ILinkPresentation> ingaCreatedLinkPresentationList = new ArrayList<>();
 
 	private Container createControllerPane() {
 
@@ -171,8 +173,7 @@ ListSelectionListener
 					String diagramName = "inga" + Long.toString(count);
 
 					TransactionManager.beginTransaction();
-					UseCaseDiagramEditor ude = projectAccessor.getDiagramEditorFactory().getUseCaseDiagramEditor();
-					ingaDiagram = ude.createUseCaseDiagram(projectAccessor.getProject(), diagramName);
+					ingaDiagram = usecaseDiagramEditor.createUseCaseDiagram(projectAccessor.getProject(), diagramName);
 					TransactionManager.endTransaction();
 
 					diagramLabel.setText(currentDiagram.getName());
@@ -184,7 +185,7 @@ ListSelectionListener
 				ex.printStackTrace();
 			}
 
-			showInga(new ILinkPresentation[] {});
+			createIngaNode();
 			diagramViewManager.open(ingaDiagram);
 			diagramViewManager.unselectAll();
 
@@ -197,7 +198,8 @@ ListSelectionListener
 
 			ingaDiagram = null;
 			ingaPresentationList = new ArrayList<>();
-			ingaCreatedPresentationList = new ArrayList<>();
+			ingaCreatedNodePresentationList = new ArrayList<>();
+			ingaCreatedLinkPresentationList = new ArrayList<>();
 
 			diagramLabel.setText("");
 			ingaDiagramLabel.setText("");
@@ -226,60 +228,47 @@ ListSelectionListener
 		linkPresentationTypes.add("Usage");
 	}
 
-	private void showInga(IPresentation[] links) {
-		if (links == null) {
-			return;
-		}
-
+	private void createIngaNode() {
 		if(ingaDiagram == null) {
 			return;
 		}
-
-		List<INodePresentation> nps = ingaPresentationList.stream()
-				.filter(INodePresentation.class::isInstance)
-				.map(INodePresentation.class::cast)
-				.collect(Collectors.toList());
-
-		List<ILinkPresentation> lps = Stream.of(links)
-				.map(ILinkPresentation.class::cast)
-				.collect(Collectors.toList());
 
 		try {
 			TransactionManager.beginTransaction();
 
 			// ユースケース図を編集
-			UseCaseDiagramEditor ude = projectAccessor.getDiagramEditorFactory().getUseCaseDiagramEditor();
-			ude.setDiagram(ingaDiagram);
+			usecaseDiagramEditor.setDiagram(ingaDiagram);
 
-			// 全Presentation削除
-			for(IPresentation p : ingaCreatedPresentationList) {
-				ude.deletePresentation(p);
+			// 作成したノードを削除
+			for(IPresentation p : ingaCreatedNodePresentationList) {
+				usecaseDiagramEditor.deletePresentation(p);
 			}
 
-			ingaCreatedPresentationList = new ArrayList<>();
+			// ノードを作成
+			ingaCreatedNodePresentationList = new ArrayList<>();
+			List<INodePresentation> nps = ingaPresentationList.stream()
+					.filter(INodePresentation.class::isInstance)
+					.map(INodePresentation.class::cast)
+					.collect(Collectors.toList());
+
 			for(INodePresentation np : nps) {
-				INodePresentation nnp = null;
 				if(np.getType().equals("UseCase")) {
-					nnp = ude.createNodePresentation(np.getModel(), np.getLocation());
-					ingaCreatedPresentationList.add(nnp);
+					INodePresentation nnp = usecaseDiagramEditor.createNodePresentation(np.getModel(), np.getLocation());
+					nnp.setHeight(np.getHeight());
+					nnp.setWidth(np.getWidth());
+					nnp.getProperties().keySet().stream()
+					.filter(k -> np.getProperty((String)k) != null)
+					.forEach(k -> {
+						try {
+							nnp.setProperty((String)k, np.getProperty((String)k));
+						} catch (InvalidEditingException e) {
+							//e.printStackTrace();
+						}
+					});
+
+					ingaCreatedNodePresentationList.add(nnp);
 				} else {
 					logger.log(Level.FINE, () -> "np type=" + np.getType());
-				}
-			}
-
-			for(ILinkPresentation lp : lps) {
-				Optional<INodePresentation> source = ingaCreatedPresentationList.stream()
-						.filter(x -> x.getLocation().equals(lp.getSource().getLocation()))
-						.findFirst();
-				Optional<INodePresentation> target = ingaCreatedPresentationList.stream()
-						.filter(x -> x.getLocation().equals(lp.getTarget().getLocation()))
-						.findFirst();
-				if(source.isPresent() && target.isPresent()) {
-					if(linkPresentationTypes.contains(lp.getType())) {
-						ILinkPresentation nlp = ude.createLinkPresentation(lp.getModel(), source.get(), target.get());
-					} else {
-						logger.log(Level.FINE, () -> "lp type=" + lp.getType());
-					}
 				}
 			}
 
@@ -288,9 +277,71 @@ ListSelectionListener
 			TransactionManager.abortTransaction();
 			logger.log(Level.WARNING, e.getMessage(), e);
 		}
+	}
 
-		diagramViewManager.open(ingaDiagram);
-		diagramViewManager.unselectAll();
+
+	private void createIngaLink(IPresentation[] links) {
+		if (links == null) {
+			return;
+		}
+
+		if(ingaDiagram == null) {
+			return;
+		}
+
+		try {
+			TransactionManager.beginTransaction();
+
+			// ユースケース図を編集
+			usecaseDiagramEditor.setDiagram(ingaDiagram);
+
+
+			// 作成したリンクを削除
+			for(IPresentation p : ingaCreatedLinkPresentationList) {
+				usecaseDiagramEditor.deletePresentation(p);
+			}
+
+			// リンクを作成
+			ingaCreatedLinkPresentationList = new ArrayList<>();
+			List<ILinkPresentation> lps = Stream.of(links)
+					.map(ILinkPresentation.class::cast)
+					.collect(Collectors.toList());
+
+			for(ILinkPresentation lp : lps) {
+				if(! linkPresentationTypes.contains(lp.getType())) {
+					logger.log(Level.FINE, () -> "lp type=" + lp.getType());
+					continue;
+				}
+
+				Optional<INodePresentation> source = ingaCreatedNodePresentationList.stream()
+						.filter(x -> x.getLocation().equals(lp.getSource().getLocation()))
+						.findFirst();
+				Optional<INodePresentation> target = ingaCreatedNodePresentationList.stream()
+						.filter(x -> x.getLocation().equals(lp.getTarget().getLocation()))
+						.findFirst();
+				if(source.isPresent() && target.isPresent()) {
+					ILinkPresentation nlp = usecaseDiagramEditor.createLinkPresentation(lp.getModel(), source.get(), target.get());
+					nlp.setAllPoints(lp.getAllPoints());
+					nlp.setLabel(lp.getLabel());
+					nlp.getProperties().keySet().stream()
+					.filter(k -> lp.getProperty((String)k) != null)
+					.forEach(k -> {
+						try {
+							nlp.setProperty((String)k, lp.getProperty((String)k));
+						} catch (InvalidEditingException e) {
+							//e.printStackTrace();
+						}
+					});
+
+					ingaCreatedLinkPresentationList.add(nlp);
+				}
+			}
+
+			TransactionManager.endTransaction();
+		}catch(Exception e){
+			TransactionManager.abortTransaction();
+			logger.log(Level.WARNING, e.getMessage(), e);
+		}
 	}
 
 
@@ -319,12 +370,9 @@ ListSelectionListener
 	 */
 	private void updateDiagramView(){
 
-		// 因果分析中はループのみを表示
+		// 因果分析中はtextArea表示更新せずにフォーカスする
 		if(ingaDiagram != null){
-			messagePresentation = UseCaseDiagramReader.getCyclicPathMessagePresentation(targetDiagram);
-			// メッセージのリスト化
-			textArea.setListData(messagePresentation.getMessagesArray());
-
+			textArea.requestFocusInWindow();
 			return;
 		}
 
@@ -403,7 +451,10 @@ ListSelectionListener
 		}
 
 		// 選択項目のPresentationを因果として表示する
-		showInga(messagePresentation.presentations.get(index));
+		createIngaLink(messagePresentation.presentations.get(index));
+
+		diagramViewManager.open(ingaDiagram);
+		diagramViewManager.unselectAll();
 	}
 
 	@Override

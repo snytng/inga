@@ -223,17 +223,22 @@ public class UseCaseDiagramReader {
 		return getPositiveLinks().size() + getNegativeLinks().size();
 	}
 
-	public static MessagePresentation getMessagePresentation(IUseCaseDiagram diagram) {
-		MessagePresentation mps = new MessagePresentation();
+	private static Set<Link> links = new HashSet<>();
 
+	private static void updateLinks(IUseCaseDiagram diagram) {
 		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
 		Set<Link> positiveLinks = udr.getPositiveLinks();
 		Set<Link> negativeLinks = udr.getNegativeLinks();
 
-		Set<Link> links = new HashSet<>();
+		links = new HashSet<>();
 		links.addAll(positiveLinks);
 		links.addAll(negativeLinks);
+	}
 
+	public static MessagePresentation getMessagePresentation(IUseCaseDiagram diagram) {
+		updateLinks(diagram);
+
+		MessagePresentation mps = new MessagePresentation();
 		recordCyclicPath(mps, links);
 		mps.add("=====", null);
 		recordLink(mps, links);
@@ -243,17 +248,7 @@ public class UseCaseDiagramReader {
 
 	public static MessagePresentation getCyclicPathMessagePresentation(IUseCaseDiagram diagram) {
 		MessagePresentation mps = new MessagePresentation();
-
-		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
-		Set<Link> positiveLinks = udr.getPositiveLinks();
-		Set<Link> negativeLinks = udr.getNegativeLinks();
-
-		Set<Link> links = new HashSet<>();
-		links.addAll(positiveLinks);
-		links.addAll(negativeLinks);
-
 		recordCyclicPath(mps, links);
-
 		return mps;
 	}
 

@@ -2,6 +2,7 @@ package snytng.astah.plugin.inga;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -9,6 +10,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.change_vision.jude.api.inf.exception.InvalidUsingException;
 import com.change_vision.jude.api.inf.model.IAssociation;
@@ -270,9 +272,16 @@ public class UseCaseDiagramReader {
 			}
 		}
 
-		for(CyclicPath cp : cps){
-			mps.add(cp.getDescription(), cp.stream().map(link -> (IPresentation)link.p).toArray(IPresentation[]::new));
-		}
+		// 自己強化、バランスの順番かつリンク数の小さい順にする
+		Stream.concat(
+				cps.stream().filter(cp ->   cp.isPositive()).sorted(Comparator.comparing(CyclicPath::size)),
+				cps.stream().filter(cp -> ! cp.isPositive()).sorted(Comparator.comparing(CyclicPath::size))
+				)
+		.forEach(cp -> {
+			mps.add(cp.getDescription(),
+					cp.stream()
+					.map(link -> (IPresentation)link.p).toArray(IPresentation[]::new));
+		});
 	}
 
 	private static void getCyclicPaths(

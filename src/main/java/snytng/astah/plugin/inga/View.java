@@ -380,6 +380,9 @@ ListSelectionListener
 			// 今選択している図のタイプを取得する
 			IDiagram diagram = diagramViewManager.getCurrentDiagram();
 
+			// 今選択しているIElemnetを取得する
+			List<IPresentation> selectedPresentations = Arrays.asList(diagramViewManager.getSelectedPresentations());
+
 			// メッセージとプレゼンテーションをリセット
 			messagePresentation = null;
 
@@ -388,7 +391,40 @@ ListSelectionListener
 				targetDiagram = (IUseCaseDiagram)diagram;
 				usecaseDiagramEditor.setDiagram(targetDiagram);
 				messagePresentation = UseCaseDiagramReader.getMessagePresentation(targetDiagram);
-				// メッセージのリスト化
+
+				// メッセージをリストへ反映
+				// 選択されている要素がなければすべてを表示
+				// 選択されている要素があれば含まれているものだけを表示する
+				if (! selectedPresentations.isEmpty()) {
+					MessagePresentation selectedMessagePresentation = new MessagePresentation();
+
+					for(int i = 0; i < messagePresentation.size(); i++) {
+						MessagePresentation.MP mp = messagePresentation.mps.get(i);
+
+						if(
+								// nullだったら表示
+								mp.presentations == null
+
+								// ILinkPresentationを選択していたら表示
+								||
+								selectedPresentations.stream()
+								.anyMatch(p -> Stream.of(mp.presentations)
+										.anyMatch(x -> x.equals(p)))
+
+								// ILinkPresentationにつながっているノードが選択していたら表示
+								||
+								selectedPresentations.stream()
+								.anyMatch(p -> Stream.of(mp.presentations)
+										.filter(ILinkPresentation.class::isInstance)
+										.map(ILinkPresentation.class::cast)
+										.anyMatch(l -> l.getTarget().equals(p) || l.getSource().equals(p)))
+								) {
+
+							selectedMessagePresentation.add(mp);
+						}
+					}
+					messagePresentation = selectedMessagePresentation;
+				}
 				textArea.setListData(messagePresentation.getMessagesArray());
 			}
 			// それ以外はなにもしない
@@ -398,11 +434,11 @@ ListSelectionListener
 
 		}catch(Exception ex){
 			logger.log(Level.WARNING, ex.getMessage());
+			ex.printStackTrace();
 		}
 	}
 
 	transient IDiagram selectedDiagram = null;
-	transient IPresentation[] selectedPresentations = null;
 
 	// IPluginExtraTabView
 	@Override
@@ -451,10 +487,20 @@ ListSelectionListener
 		}
 
 		// 選択項目のPresentationを因果として表示する
-		createIngaLink(messagePresentation.presentations.get(index));
+		// 因果ループ作成中
+		if (ingaDiagram == null) {
+			if (messagePresentation != null) {
+				IPresentation[] links = messagePresentation.getPresentationsArray()[index];
+				diagramViewManager.select(links);
+			}
+		}
+		// 因果ループ解析結果表示中
+		else {
+			createIngaLink(messagePresentation.getPresentationsArray()[index]);
 
-		diagramViewManager.open(ingaDiagram);
-		diagramViewManager.unselectAll();
+			diagramViewManager.open(ingaDiagram);
+			diagramViewManager.unselectAll();
+		}
 	}
 
 	@Override

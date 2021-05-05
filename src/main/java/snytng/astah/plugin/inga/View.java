@@ -263,7 +263,7 @@ ListSelectionListener
 						try {
 							nnp.setProperty((String)k, np.getProperty((String)k));
 						} catch (InvalidEditingException e) {
-							//e.printStackTrace();
+							logger.log(Level.FINEST, e.getMessage(), e);
 						}
 					});
 
@@ -332,7 +332,7 @@ ListSelectionListener
 						try {
 							nlp.setProperty((String)k, lp.getProperty((String)k));
 						} catch (InvalidEditingException e) {
-							//e.printStackTrace();
+							logger.log(Level.FINEST, e.getMessage(), e);
 						}
 					});
 
@@ -402,6 +402,8 @@ ListSelectionListener
 				// 選択されている要素があれば含まれているものだけを表示する
 				if (! selectedPresentations.isEmpty()) {
 					List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
+
+					messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations);
 
 					for(int i = 0; i < messagePresentations.size(); i++) {
 						MessagePresentation mp = messagePresentations.get(i);
@@ -512,12 +514,11 @@ ListSelectionListener
 		// 選択項目のPresentationを因果として表示する
 		// 因果ループ作成中
 		if (ingaDiagram == null) {
-			if(messagePresentations != null) {
-				if(messagePresentations.get(index).presentations != null) {
-					modeListSelecting = true;
-					diagramViewManager.select(messagePresentations.get(index).presentations);
-					modeListSelecting = false;
-				}
+			if(messagePresentations != null &&
+					messagePresentations.get(index).presentations != null) {
+				modeListSelecting = true;
+				diagramViewManager.select(messagePresentations.get(index).presentations);
+				modeListSelecting = false;
 			}
 		}
 		// 因果ループ解析結果表示中

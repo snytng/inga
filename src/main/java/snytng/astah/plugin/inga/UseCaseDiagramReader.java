@@ -123,6 +123,21 @@ public class UseCaseDiagramReader {
 					.collect(Collectors.joining());
 		}
 
+		public String getDescription(IPresentation startPresentation){
+			int index = 0;
+			for(int i = 0; i < this.size(); i++) {
+				if(get(i).source == startPresentation || get(i).p == startPresentation) {
+					index = i;
+					break;
+				}
+			}
+
+			return getType() + ": " +
+					Stream.concat(this.stream().skip(index), this.stream().limit(index))
+			.map(inga -> inga.from + " " + inga.getArrowString() + " ")
+			.collect(Collectors.joining());
+		}
+
 		public boolean isPositive() {
 			return this.stream().filter(l -> ! l.positive).count() % 2 == 0;
 		}
@@ -328,6 +343,19 @@ public class UseCaseDiagramReader {
 
 	}
 
+	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram, List<IPresentation> selectedPresentation) {
+		updateIngas(diagram);
+
+		List<MessagePresentation> mps = new ArrayList<>();
+		recordLoop(mps, selectedPresentation.get(0));
+		recordBar(mps);
+		recordLink(mps);
+		recordBar(mps);
+		recordNode(mps);
+
+		return mps;
+	}
+
 	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram) {
 		updateIngas(diagram);
 
@@ -386,6 +414,23 @@ public class UseCaseDiagramReader {
 		.forEach(loop ->
 		mps.add(new MessagePresentation(
 				loop.getDescription(),
+				loop.stream()
+				.map(inga -> (IPresentation)inga.p)
+				.toArray(IPresentation[]::new))
+				)
+				);
+	}
+
+	// ループを表示
+	private static void recordLoop(List<MessagePresentation> mps, IPresentation startPresentation) {
+		// 自己強化、バランスの順番かつリンク数の小さい順にする
+		Stream.concat(
+				loops.stream().filter(Loop::isPositive).sorted(Comparator.comparing(Loop::size)),
+				loops.stream().filter(Loop::isNegative).sorted(Comparator.comparing(Loop::size))
+				)
+		.forEach(loop ->
+		mps.add(new MessagePresentation(
+				loop.getDescription(startPresentation),
 				loop.stream()
 				.map(inga -> (IPresentation)inga.p)
 				.toArray(IPresentation[]::new))

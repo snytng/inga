@@ -361,7 +361,9 @@ ListSelectionListener
 	 */
 	@Override
 	public void entitySelectionChanged(IEntitySelectionEvent e) {
-		updateDiagramView();
+		if(! modeListSelecting) {
+			updateDiagramView();
+		}
 	}
 
 	// 読み上げ結果
@@ -496,8 +498,9 @@ ListSelectionListener
 		// 選択項目のPresentationを因果として表示する
 		// 因果ループ作成中
 		if (ingaDiagram == null) {
-			IPresentation[] links = messagePresentations.get(index).presentations;
-			diagramViewManager.select(links);
+			modeListSelecting = true;
+			diagramViewManager.select(messagePresentations.get(index).presentations);
+			modeListSelecting = false;
 		}
 		// 因果ループ解析結果表示中
 		else {
@@ -507,6 +510,9 @@ ListSelectionListener
 			diagramViewManager.unselectAll();
 		}
 	}
+
+	transient boolean modeListSelecting = false;
+
 
 	@Override
 	public void projectChanged(ProjectEvent arg0) {

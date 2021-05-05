@@ -263,7 +263,7 @@ ListSelectionListener
 						try {
 							nnp.setProperty((String)k, np.getProperty((String)k));
 						} catch (InvalidEditingException e) {
-							e.printStackTrace();
+							//e.printStackTrace();
 						}
 					});
 
@@ -306,6 +306,7 @@ ListSelectionListener
 			// リンクを作成
 			ingaCreatedLinkPresentationList = new ArrayList<>();
 			List<ILinkPresentation> lps = Stream.of(links)
+					.filter(ILinkPresentation.class::isInstance)
 					.map(ILinkPresentation.class::cast)
 					.collect(Collectors.toList());
 
@@ -331,7 +332,7 @@ ListSelectionListener
 						try {
 							nlp.setProperty((String)k, lp.getProperty((String)k));
 						} catch (InvalidEditingException e) {
-							e.printStackTrace();
+							//e.printStackTrace();
 						}
 					});
 
@@ -409,19 +410,32 @@ ListSelectionListener
 								// nullだったら表示
 								mp.presentations == null
 
-								// ILinkPresentationを選択していたら表示
+								// 選択しているIPresentationと同じだったら表示
 								||
 								selectedPresentations.stream()
 								.anyMatch(p -> Stream.of(mp.presentations)
-										.anyMatch(x -> x.equals(p)))
+										.anyMatch(x -> x == p))
 
-								// ILinkPresentationにつながっているノードが選択していたら表示
+								// ノードを選択していたら、つながっているILinkPresentationを表示
 								||
 								selectedPresentations.stream()
-								.anyMatch(p -> Stream.of(mp.presentations)
+								.filter(INodePresentation.class::isInstance)
+								.map(INodePresentation.class::cast)
+								.anyMatch(np -> Stream.of(mp.presentations)
 										.filter(ILinkPresentation.class::isInstance)
 										.map(ILinkPresentation.class::cast)
-										.anyMatch(l -> l.getTarget().equals(p) || l.getSource().equals(p)))
+										.anyMatch(l -> l.getTarget().equals(np) || l.getSource().equals(np)))
+
+								// リンクを選択していたら、つながっているINodePresentationを表示
+								||
+								selectedPresentations.stream()
+								.filter(ILinkPresentation.class::isInstance)
+								.map(ILinkPresentation.class::cast)
+								.anyMatch(lp -> Stream.of(mp.presentations)
+										.filter(INodePresentation.class::isInstance)
+										.map(INodePresentation.class::cast)
+										.anyMatch(np -> np.equals(lp.getTarget()) || np.equals(lp.getSource())))
+
 								) {
 
 							selectedMessagePresentation.add(mp);
@@ -498,9 +512,13 @@ ListSelectionListener
 		// 選択項目のPresentationを因果として表示する
 		// 因果ループ作成中
 		if (ingaDiagram == null) {
-			modeListSelecting = true;
-			diagramViewManager.select(messagePresentations.get(index).presentations);
-			modeListSelecting = false;
+			if(messagePresentations != null) {
+				if(messagePresentations.get(index).presentations != null) {
+					modeListSelecting = true;
+					diagramViewManager.select(messagePresentations.get(index).presentations);
+					modeListSelecting = false;
+				}
+			}
 		}
 		// 因果ループ解析結果表示中
 		else {

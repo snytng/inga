@@ -46,9 +46,9 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * Link
+	 * Inga - case and effect
 	 */
-	static class Link {
+	static class Inga {
 		ILinkPresentation p;
 		INodePresentation source;
 		INodePresentation target;
@@ -56,7 +56,7 @@ public class UseCaseDiagramReader {
 		INamedElement to;
 		boolean positive;
 
-		public Link(ILinkPresentation p, INodePresentation source, INodePresentation target, boolean positive){
+		public Inga(ILinkPresentation p, INodePresentation source, INodePresentation target, boolean positive){
 			this.p        = p;
 			this.source   = source;
 			this.target   = target;
@@ -73,7 +73,7 @@ public class UseCaseDiagramReader {
 			}
 		}
 
-		public String getLinkString() {
+		public String getArrowString() {
 			return this.positive ? "-(+)->" : "-(-)->";
 		}
 
@@ -88,15 +88,15 @@ public class UseCaseDiagramReader {
 			if (this.getClass() != obj.getClass())
 				return false;
 
-			Link a = (Link)obj;
+			Inga a = (Inga)obj;
 			return p.equals(a.p);
 		}
 	}
 
 	/**
-	 * Loop the cyclic path of links
+	 * Loop the cyclic path of ingas
 	 */
-	static class Loop extends ArrayList<Link> implements List<Link> {
+	static class Loop extends ArrayList<Inga> implements List<Inga> {
 
 		public Loop() {
 			super();
@@ -107,10 +107,10 @@ public class UseCaseDiagramReader {
 			cp.stream().forEach(this::add);
 		}
 
-		public Loop(Loop cp, Link link) {
+		public Loop(Loop cp, Inga inga) {
 			super();
 			cp.stream().forEach(this::add);
-			this.add(link);
+			this.add(inga);
 		}
 
 		private String getType() {
@@ -119,7 +119,7 @@ public class UseCaseDiagramReader {
 
 		public String getDescription(){
 			return getType() + ": " +
-					this.stream().map(link -> link.from + " " + link.getLinkString() + " ")
+					this.stream().map(inga -> inga.from + " " + inga.getArrowString() + " ")
 					.collect(Collectors.joining());
 		}
 
@@ -143,6 +143,31 @@ public class UseCaseDiagramReader {
 
 		public Node(INodePresentation p) {
 			this.p = p;
+		}
+
+		public int numOfLoops() {
+			return loops.size();
+		}
+
+		public int numOfPositiveLoops() {
+			return (int)loops.stream().filter(Loop::isPositive).count();
+		}
+
+		public int numOfNegativeLoops() {
+			return (int)loops.stream().filter(Loop::isNegative).count();
+		}
+
+		public boolean hasPostiveNegativeLoop() {
+			return (numOfLoops() > 0) && (numOfNegativeLoops() > 0);
+		}
+	}
+
+	static class Link {
+		Inga inga;
+		List<Loop> loops = new ArrayList<>();
+
+		public Link(Inga inga) {
+			this.inga = inga;
 		}
 
 		public int numOfLoops() {
@@ -187,9 +212,9 @@ public class UseCaseDiagramReader {
 	 * ユースケース図に含まれる正リンクを取得する
 	 * @return ユースケース配列
 	 */
-	public Set<Link> getPositiveLinks(){
+	public Set<Inga> getPositiveIngas(){
 
-		Set<Link> ret = new HashSet<>();
+		Set<Inga> ret = new HashSet<>();
 
 		try {
 			Arrays.stream(diagram.getPresentations())
@@ -205,12 +230,12 @@ public class UseCaseDiagramReader {
 				if(sourceAttr.getNavigability().equals("Unspecified") &&
 						targetAttr.getNavigability().equals("Navigable")
 						){
-					ret.add(new Link(lp, source, target, true));
+					ret.add(new Inga(lp, source, target, true));
 				}
 				else if(sourceAttr.getNavigability().equals("Navigable") &&
 						targetAttr.getNavigability().equals("Unspecified")
 						){
-					ret.add(new Link(lp, target, source, true));
+					ret.add(new Inga(lp, target, source, true));
 				}
 			});
 		}catch(Exception e){
@@ -224,15 +249,15 @@ public class UseCaseDiagramReader {
 	 * ユースケース図に含まれる負リンクを取得する
 	 * @return ユースケース配列
 	 */
-	public Set<Link> getNegativeLinks(){
+	public Set<Inga> getNegativeIngas(){
 
-		Set<Link> ret = new HashSet<>();
+		Set<Inga> ret = new HashSet<>();
 
 		try {
 			Stream.of(diagram.getPresentations())
 			.filter(p -> p.getModel() instanceof IDependency)
 			.map(ILinkPresentation.class::cast)
-			.forEach(lp -> ret.add(new Link(lp, lp.getTarget(), lp.getSource(), false)));
+			.forEach(lp -> ret.add(new Inga(lp, lp.getTarget(), lp.getSource(), false)));
 		} catch (InvalidUsingException e) {
 			logger.log(Level.WARNING, e.getMessage());
 		}
@@ -245,41 +270,42 @@ public class UseCaseDiagramReader {
 	 * @return メッセージ数
 	 */
 	public int getNumberOfMessages(){
-		return getPositiveLinks().size() + getNegativeLinks().size();
+		return getPositiveIngas().size() + getNegativeIngas().size();
 	}
 
-	private static Set<Link> links = new HashSet<>();
-	private static List<Node> nodes = new ArrayList<>();
+	private static Set<Inga> ingaSet = new HashSet<>();
 	private static List<Loop> loops = new ArrayList<>();
+	private static List<Node> nodes = new ArrayList<>();
+	private static List<Link> links = new ArrayList<>();
 
-	private static void updateLinks(IUseCaseDiagram diagram) {
+	private static void updateIngas(IUseCaseDiagram diagram) {
 		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
 
-		Set<Link> positiveLinks = udr.getPositiveLinks();
-		Set<Link> negativeLinks = udr.getNegativeLinks();
+		Set<Inga> positiveIngas = udr.getPositiveIngas();
+		Set<Inga> negativeINgas = udr.getNegativeIngas();
 
-		links = new HashSet<>();
-		links.addAll(positiveLinks);
-		links.addAll(negativeLinks);
+		ingaSet = new HashSet<>();
+		ingaSet.addAll(positiveIngas);
+		ingaSet.addAll(negativeINgas);
 
 		loops = new ArrayList<>();
-		links.stream().forEach(link -> {
-			INodePresentation node = link.p.getSource();
+		ingaSet.stream().forEach(inga -> {
+			INodePresentation node = inga.p.getSource();
 			if(node.getType().equals("UseCase")) {
 				logger.log(Level.FINE, () -> "##### p " + node.getLabel());
 				IUseCase uc = (IUseCase)node.getModel();
-				getLoops(uc, links, new Loop(), loops);
+				getLoops(uc, ingaSet, new Loop(), loops);
 			}
 		});
 
-		nodes = links.stream()
-				.map(l -> l.source)
+		nodes = ingaSet.stream()
+				.map(inga -> inga.source)
 				.distinct()
 				.map(n -> {
 					Node node = new Node(n);
 					node.loops = loops.stream()
-							.filter(link -> link.stream()
-									.map(l -> l.source)
+							.filter(ingas -> ingas.stream()
+									.map(inga -> inga.source)
 									.anyMatch(s -> s.equals(n)))
 							.collect(Collectors.toList());
 					return node;
@@ -288,10 +314,22 @@ public class UseCaseDiagramReader {
 				.sorted(Comparator.comparing(Node::numOfLoops).reversed())
 				.collect(Collectors.toList());
 
+		links = ingaSet.stream()
+				.map(inga -> {
+					Link link = new Link(inga);
+					link.loops = loops.stream()
+							.filter(loop -> loop.contains(inga))
+							.collect(Collectors.toList());
+					return link;
+					})
+				.filter(link -> link.numOfLoops() > 0)
+				.sorted(Comparator.comparing(Link::numOfLoops).reversed())
+				.collect(Collectors.toList());
+
 	}
 
 	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram) {
-		updateLinks(diagram);
+		updateIngas(diagram);
 
 		List<MessagePresentation> mps = new ArrayList<>();
 		recordLoop(mps);
@@ -306,12 +344,6 @@ public class UseCaseDiagramReader {
 	// 仕切りを追加
 	private static void recordBar(List<MessagePresentation> mps) {
 		mps.add(new MessagePresentation("=====", null));
-	}
-
-	// リンクを表示
-	private static void recordLink(List<MessagePresentation> mps) {
-		links.stream()
-		.forEach(link -> mps.add(new MessagePresentation(link.toString(), new IPresentation[]{link.p})));
 	}
 
 	// ノードを表示
@@ -329,6 +361,21 @@ public class UseCaseDiagramReader {
 				);
 	}
 
+	// リンクを表示
+	private static void recordLink(List<MessagePresentation> mps) {
+		links.stream().forEach(link ->
+		mps.add(new MessagePresentation(
+				String.format(
+						"%s: %d (自己強化=%d, バランス=%d)",
+						link.inga.toString(),
+						link.numOfLoops(),
+						link.numOfPositiveLoops(),
+						link.numOfNegativeLoops()
+						),
+				new IPresentation[]{link.inga.p}))
+				);
+	}
+
 	// ループを表示
 	private static void recordLoop(List<MessagePresentation> mps) {
 		// 自己強化、バランスの順番かつリンク数の小さい順にする
@@ -340,7 +387,7 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				loop.getDescription(),
 				loop.stream()
-				.map(link -> (IPresentation)link.p)
+				.map(inga -> (IPresentation)inga.p)
 				.toArray(IPresentation[]::new))
 				)
 				);
@@ -348,22 +395,22 @@ public class UseCaseDiagramReader {
 
 	private static void getLoops(
 			IUseCase currentUC,
-			Set<Link> links,
+			Set<Inga> ingas,
 			Loop loop,
 			List<Loop> loops
 			){
 
-		links.stream()
-		.filter(link -> link.from == currentUC)
-		.forEach(link -> {
-			logger.log(Level.FINE, () -> "##### link " + link.from + "->" + link.to);
+		ingas.stream()
+		.filter(inga -> inga.from == currentUC)
+		.forEach(inga -> {
+			logger.log(Level.FINE, () -> "##### inga " + inga.from + "->" + inga.to);
 
 			// 最初のノードに戻ってループした
-			if(! loop.isEmpty() && loop.get(0).from == link.to){
-				Loop nl = new Loop(loop, link);
+			if(! loop.isEmpty() && loop.get(0).from == inga.to){
+				Loop nl = new Loop(loop, inga);
 
 				if(loops.stream()
-						.anyMatch(l -> new HashSet<Link>(l).equals(new HashSet<Link>(nl)))){
+						.anyMatch(l -> new HashSet<Inga>(l).equals(new HashSet<Inga>(nl)))){
 					logger.log(Level.FINE, () -> "existed loop " + nl);
 				} else {
 					logger.log(Level.FINE, () -> "new loop " + nl);
@@ -372,15 +419,15 @@ public class UseCaseDiagramReader {
 
 			}
 			// ループしたが途中にぶつかった
-			else if(loop.stream().anyMatch(l -> l.from == link.to)) {
+			else if(loop.stream().anyMatch(l -> l.from == inga.to)) {
 				logger.log(Level.FINE, "loop but not back to start point");
 
 			}
 			// ループしていないので、次のリンクへ進む
 			else {
 				logger.log(Level.FINE, "not loop go next");
-				Loop nl = new Loop(loop, link);
-				getLoops((IUseCase)link.to, links, nl, loops);
+				Loop nl = new Loop(loop, inga);
+				getLoops((IUseCase)inga.to, ingas, nl, loops);
 			}
 
 		});

@@ -228,6 +228,7 @@ ListSelectionListener
 		linkPresentationTypes.add("Usage");
 	}
 
+	@SuppressWarnings("unchecked")
 	private void createIngaNode() {
 		if(ingaDiagram == null) {
 			return;
@@ -262,7 +263,7 @@ ListSelectionListener
 						try {
 							nnp.setProperty((String)k, np.getProperty((String)k));
 						} catch (InvalidEditingException e) {
-							//e.printStackTrace();
+							logger.log(Level.FINEST, e.getMessage(), e);
 						}
 					});
 
@@ -280,6 +281,7 @@ ListSelectionListener
 	}
 
 
+	@SuppressWarnings("unchecked")
 	private void createIngaLink(IPresentation[] links) {
 		if (links == null) {
 			return;
@@ -304,6 +306,7 @@ ListSelectionListener
 			// リンクを作成
 			ingaCreatedLinkPresentationList = new ArrayList<>();
 			List<ILinkPresentation> lps = Stream.of(links)
+					.filter(ILinkPresentation.class::isInstance)
 					.map(ILinkPresentation.class::cast)
 					.collect(Collectors.toList());
 
@@ -329,7 +332,7 @@ ListSelectionListener
 						try {
 							nlp.setProperty((String)k, lp.getProperty((String)k));
 						} catch (InvalidEditingException e) {
-							//e.printStackTrace();
+							logger.log(Level.FINEST, e.getMessage(), e);
 						}
 					});
 
@@ -359,11 +362,13 @@ ListSelectionListener
 	 */
 	@Override
 	public void entitySelectionChanged(IEntitySelectionEvent e) {
-		updateDiagramView();
+		if(! modeListSelecting) {
+			updateDiagramView();
+		}
 	}
 
 	// 読み上げ結果
-	private transient MessagePresentation messagePresentation = null;
+	private transient List<MessagePresentation> messagePresentations = new ArrayList<>();
 
 	/**
 	 * 表示を更新する
@@ -384,48 +389,20 @@ ListSelectionListener
 			List<IPresentation> selectedPresentations = Arrays.asList(diagramViewManager.getSelectedPresentations());
 
 			// メッセージとプレゼンテーションをリセット
-			messagePresentation = null;
+			messagePresentations = new ArrayList<>();
 
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
 				targetDiagram = (IUseCaseDiagram)diagram;
 				usecaseDiagramEditor.setDiagram(targetDiagram);
-				messagePresentation = UseCaseDiagramReader.getMessagePresentation(targetDiagram);
+				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations);
 
 				// メッセージをリストへ反映
-				// 選択されている要素がなければすべてを表示
-				// 選択されている要素があれば含まれているものだけを表示する
-				if (! selectedPresentations.isEmpty()) {
-					MessagePresentation selectedMessagePresentation = new MessagePresentation();
-
-					for(int i = 0; i < messagePresentation.size(); i++) {
-						MessagePresentation.MP mp = messagePresentation.mps.get(i);
-
-						if(
-								// nullだったら表示
-								mp.presentations == null
-
-								// ILinkPresentationを選択していたら表示
-								||
-								selectedPresentations.stream()
-								.anyMatch(p -> Stream.of(mp.presentations)
-										.anyMatch(x -> x.equals(p)))
-
-								// ILinkPresentationにつながっているノードが選択していたら表示
-								||
-								selectedPresentations.stream()
-								.anyMatch(p -> Stream.of(mp.presentations)
-										.filter(ILinkPresentation.class::isInstance)
-										.map(ILinkPresentation.class::cast)
-										.anyMatch(l -> l.getTarget().equals(p) || l.getSource().equals(p)))
-								) {
-
-							selectedMessagePresentation.add(mp);
-						}
-					}
-					messagePresentation = selectedMessagePresentation;
-				}
-				textArea.setListData(messagePresentation.getMessagesArray());
+				textArea.setListData(
+						messagePresentations.stream()
+						.map(mp -> mp.message)
+						.toArray(String[]::new)
+						);
 			}
 			// それ以外はなにもしない
 			else {
@@ -489,19 +466,24 @@ ListSelectionListener
 		// 選択項目のPresentationを因果として表示する
 		// 因果ループ作成中
 		if (ingaDiagram == null) {
-			if (messagePresentation != null) {
-				IPresentation[] links = messagePresentation.getPresentationsArray()[index];
-				diagramViewManager.select(links);
+			if(messagePresentations != null &&
+					messagePresentations.get(index).presentations != null) {
+				modeListSelecting = true;
+				diagramViewManager.select(messagePresentations.get(index).presentations);
+				modeListSelecting = false;
 			}
 		}
 		// 因果ループ解析結果表示中
 		else {
-			createIngaLink(messagePresentation.getPresentationsArray()[index]);
+			createIngaLink(messagePresentations.get(index).presentations);
 
 			diagramViewManager.open(ingaDiagram);
 			diagramViewManager.unselectAll();
 		}
 	}
+
+	transient boolean modeListSelecting = false;
+
 
 	@Override
 	public void projectChanged(ProjectEvent arg0) {

@@ -19,6 +19,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -146,6 +147,7 @@ ListSelectionListener
 	JLabel  ingaDiagramLabel = new JLabel("");
 	JButton addButton    = new JButton(VIEW_BUNDLE.getString("Button.Add"));
 	JButton deleteButton = new JButton(VIEW_BUNDLE.getString("Button.Del"));
+	JRadioButton showLoopOnlyButton = new JRadioButton("ループのみ", false);
 
 	transient IUseCaseDiagram targetDiagram = null;
 	transient IUseCaseDiagram ingaDiagram = null;
@@ -209,11 +211,18 @@ ListSelectionListener
 		});
 
 		JPanel panel = new JPanel();
-		panel.add(controllerLabel);
-		panel.add(diagramLabel);
-		panel.add(addButton);
-		panel.add(deleteButton);
-		panel.add(ingaDiagramLabel);
+		panel.setLayout(new BorderLayout());
+		JPanel centerPanel = new JPanel();
+		JPanel eastPanel = new JPanel();
+		panel.add(centerPanel, BorderLayout.CENTER);
+		panel.add(eastPanel, BorderLayout.EAST);
+
+		centerPanel.add(controllerLabel);
+		centerPanel.add(diagramLabel);
+		centerPanel.add(addButton);
+		centerPanel.add(deleteButton);
+		centerPanel.add(ingaDiagramLabel);
+		eastPanel.add(showLoopOnlyButton);
 
 		return panel;
 	}
@@ -394,8 +403,7 @@ ListSelectionListener
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
 				targetDiagram = (IUseCaseDiagram)diagram;
-				usecaseDiagramEditor.setDiagram(targetDiagram);
-				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations);
+				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations, showLoopOnlyButton.isSelected());
 
 				// メッセージをリストへ反映
 				textArea.setListData(

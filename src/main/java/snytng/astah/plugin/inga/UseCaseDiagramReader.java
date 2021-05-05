@@ -46,7 +46,7 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * Inga - case and effect
+	 * Inga - cause and effect
 	 */
 	static class Inga {
 		ILinkPresentation p;
@@ -102,7 +102,7 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * Loop the cyclic path of ingas
+	 * Loop - the cyclic path of Ingas
 	 */
 	static class Loop extends ArrayList<Inga> implements List<Inga> {
 
@@ -153,18 +153,19 @@ public class UseCaseDiagramReader {
 			return ! isReinforcingLoop();
 		}
 
+		@Override
 		public String toString() {
 			return this.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->"));
 		}
 
 	}
 
-	static class Node {
-		INodePresentation p;
+	static class LoopElement<T> {
+		T loopElement;
 		List<Loop> loops = new ArrayList<>();
 
-		public Node(INodePresentation p) {
-			this.p = p;
+		public LoopElement(T t) {
+			this.loopElement = t;
 		}
 
 		public int numOfLoops() {
@@ -183,32 +184,6 @@ public class UseCaseDiagramReader {
 			return (numOfLoops() > 0) && (numOfNegativeLoops() > 0);
 		}
 	}
-
-	static class Link {
-		Inga inga;
-		List<Loop> loops = new ArrayList<>();
-
-		public Link(Inga inga) {
-			this.inga = inga;
-		}
-
-		public int numOfLoops() {
-			return loops.size();
-		}
-
-		public int numOfPositiveLoops() {
-			return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
-		}
-
-		public int numOfNegativeLoops() {
-			return (int)loops.stream().filter(Loop::isBalancedLoop).count();
-		}
-
-		public boolean hasPostiveNegativeLoop() {
-			return (numOfLoops() > 0) && (numOfNegativeLoops() > 0);
-		}
-	}
-
 
 	/**
 	 * ユースケース図に含まれるユースケースを取得する
@@ -295,20 +270,19 @@ public class UseCaseDiagramReader {
 		return getPositiveIngas().size() + getNegativeIngas().size();
 	}
 
-	private static Set<Inga> ingaSet = new HashSet<>();
 	private static List<Loop> loops = new ArrayList<>();
-	private static List<Node> nodes = new ArrayList<>();
-	private static List<Link> links = new ArrayList<>();
+	private static List<LoopElement<INodePresentation>> nodes = new ArrayList<>();
+	private static List<LoopElement<Inga>>links = new ArrayList<>();
 
-	private static void updateIngas(IUseCaseDiagram diagram) {
+	private static void updateIngas(IUseCaseDiagram diagram, boolean showLoopOnly) {
 		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
 
 		Set<Inga> positiveIngas = udr.getPositiveIngas();
-		Set<Inga> negativeINgas = udr.getNegativeIngas();
+		Set<Inga> negativeIngas = udr.getNegativeIngas();
 
-		ingaSet = new HashSet<>();
+		Set<Inga> ingaSet = new HashSet<>();
 		ingaSet.addAll(positiveIngas);
-		ingaSet.addAll(negativeINgas);
+		ingaSet.addAll(negativeIngas);
 
 		loops = new ArrayList<>();
 		ingaSet.stream().forEach(inga -> {
@@ -324,7 +298,7 @@ public class UseCaseDiagramReader {
 				.map(inga -> inga.source)
 				.distinct()
 				.map(n -> {
-					Node node = new Node(n);
+					LoopElement<INodePresentation> node = new LoopElement<>(n);
 					node.loops = loops.stream()
 							.filter(ingas -> ingas.stream()
 									.map(inga -> inga.source)
@@ -332,26 +306,26 @@ public class UseCaseDiagramReader {
 							.collect(Collectors.toList());
 					return node;
 					})
-				.filter(node -> node.numOfLoops() > 0)
-				.sorted(Comparator.comparing(Node::numOfLoops).reversed())
+				.filter(node ->  ! (showLoopOnly && node.numOfLoops() == 0))
+				.sorted(Comparator.comparing(LoopElement<INodePresentation>::numOfLoops).reversed())
 				.collect(Collectors.toList());
 
 		links = ingaSet.stream()
 				.map(inga -> {
-					Link link = new Link(inga);
+					LoopElement<Inga> link = new LoopElement<>(inga);
 					link.loops = loops.stream()
 							.filter(loop -> loop.contains(inga))
 							.collect(Collectors.toList());
 					return link;
 					})
-				.filter(link -> link.numOfLoops() > 0)
-				.sorted(Comparator.comparing(Link::numOfLoops).reversed())
+				.filter(link -> ! (showLoopOnly && link.numOfLoops() == 0))
+				.sorted(Comparator.comparing(LoopElement<Inga>::numOfLoops).reversed())
 				.collect(Collectors.toList());
 
 	}
 
-	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram, List<IPresentation> selectedPresentations) {
-		updateIngas(diagram);
+	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram, List<IPresentation> selectedPresentations, boolean showLoopOnly) {
+		updateIngas(diagram, showLoopOnly);
 
 		List<MessagePresentation> mps = new ArrayList<>();
 
@@ -423,12 +397,12 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				String.format(
 						"%s: %d (自己強化=%d, バランス=%d)",
-						node.p.getLabel(),
+						node.loopElement.getLabel(),
 						node.numOfLoops(),
 						node.numOfPositiveLoops(),
 						node.numOfNegativeLoops()
 						),
-				new IPresentation[]{node.p}))
+				new IPresentation[]{node.loopElement}))
 				);
 	}
 
@@ -438,12 +412,12 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				String.format(
 						"%s: %d (自己強化=%d, バランス=%d)",
-						link.inga.toString(),
+						link.loopElement.toString(),
 						link.numOfLoops(),
 						link.numOfPositiveLoops(),
 						link.numOfNegativeLoops()
 						),
-				new IPresentation[]{link.inga.p}))
+				new IPresentation[]{link.loopElement.p}))
 				);
 	}
 

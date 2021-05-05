@@ -24,7 +24,7 @@ import com.change_vision.jude.api.inf.presentation.INodePresentation;
 import com.change_vision.jude.api.inf.presentation.IPresentation;
 
 /**
- * ユースケース図をインがループとして解析するる
+ * ユースケース図を因果ループとして解析する
  */
 public class UseCaseDiagramReader {
 

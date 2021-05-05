@@ -395,57 +395,9 @@ ListSelectionListener
 			if(diagram instanceof IUseCaseDiagram){
 				targetDiagram = (IUseCaseDiagram)diagram;
 				usecaseDiagramEditor.setDiagram(targetDiagram);
-				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram);
+				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations);
 
 				// メッセージをリストへ反映
-				// 選択されている要素がなければすべてを表示
-				// 選択されている要素があれば含まれているものだけを表示する
-				if (! selectedPresentations.isEmpty()) {
-					List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
-
-					messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations);
-
-					for(int i = 0; i < messagePresentations.size(); i++) {
-						MessagePresentation mp = messagePresentations.get(i);
-
-						if(
-								// nullだったら表示
-								mp.presentations == null
-
-								// 選択しているIPresentationと同じだったら表示
-								||
-								selectedPresentations.stream()
-								.anyMatch(p -> Stream.of(mp.presentations)
-										.anyMatch(x -> x == p))
-
-								// ノードを選択していたら、つながっているILinkPresentationを表示
-								||
-								selectedPresentations.stream()
-								.filter(INodePresentation.class::isInstance)
-								.map(INodePresentation.class::cast)
-								.anyMatch(np -> Stream.of(mp.presentations)
-										.filter(ILinkPresentation.class::isInstance)
-										.map(ILinkPresentation.class::cast)
-										.anyMatch(l -> l.getTarget().equals(np) || l.getSource().equals(np)))
-
-								// リンクを選択していたら、つながっているINodePresentationを表示
-								||
-								selectedPresentations.stream()
-								.filter(ILinkPresentation.class::isInstance)
-								.map(ILinkPresentation.class::cast)
-								.anyMatch(lp -> Stream.of(mp.presentations)
-										.filter(INodePresentation.class::isInstance)
-										.map(INodePresentation.class::cast)
-										.anyMatch(np -> np.equals(lp.getTarget()) || np.equals(lp.getSource())))
-
-								) {
-
-							selectedMessagePresentation.add(mp);
-						}
-					}
-					messagePresentations = selectedMessagePresentation;
-				}
-
 				textArea.setListData(
 						messagePresentations.stream()
 						.map(mp -> mp.message)

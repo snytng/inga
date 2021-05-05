@@ -54,7 +54,7 @@ public class UseCaseDiagramReader {
 		INodePresentation target;
 		INamedElement from;
 		INamedElement to;
-		boolean positive;
+		private boolean positive;
 
 		public Inga(ILinkPresentation p, INodePresentation source, INodePresentation target, boolean positive){
 			this.p        = p;
@@ -63,6 +63,14 @@ public class UseCaseDiagramReader {
 			this.from     = (INamedElement)this.source.getModel();
 			this.to       = (INamedElement)this.target.getModel();
 			this.positive = positive;
+		}
+
+		public boolean isPositive() {
+			return positive;
+		}
+
+		public boolean isNegative() {
+			return ! positive;
 		}
 
 		public String toString(){
@@ -114,13 +122,11 @@ public class UseCaseDiagramReader {
 		}
 
 		private String getType() {
-			return isPositive() ? "自己強化" : "バランス";
+			return isReinforcingLoop() ? "自己強化" : "バランス";
 		}
 
 		public String getDescription(){
-			return getType() + ": " +
-					this.stream().map(inga -> inga.from + " " + inga.getArrowString() + " ")
-					.collect(Collectors.joining());
+			return getDescription(null);
 		}
 
 		public String getDescription(IPresentation startPresentation){
@@ -138,12 +144,13 @@ public class UseCaseDiagramReader {
 			.collect(Collectors.joining());
 		}
 
-		public boolean isPositive() {
-			return this.stream().filter(l -> ! l.positive).count() % 2 == 0;
+		public boolean isReinforcingLoop() {
+			// ネガティブループが偶数個含まれていれば自己強化ループ
+			return this.stream().filter(Inga::isNegative).count() % 2 == 0;
 		}
 
-		public boolean isNegative() {
-			return ! isPositive();
+		public boolean isBalancedLoop() {
+			return ! isReinforcingLoop();
 		}
 
 		public String toString() {
@@ -165,11 +172,11 @@ public class UseCaseDiagramReader {
 		}
 
 		public int numOfPositiveLoops() {
-			return (int)loops.stream().filter(Loop::isPositive).count();
+			return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
 		}
 
 		public int numOfNegativeLoops() {
-			return (int)loops.stream().filter(Loop::isNegative).count();
+			return (int)loops.stream().filter(Loop::isBalancedLoop).count();
 		}
 
 		public boolean hasPostiveNegativeLoop() {
@@ -190,11 +197,11 @@ public class UseCaseDiagramReader {
 		}
 
 		public int numOfPositiveLoops() {
-			return (int)loops.stream().filter(Loop::isPositive).count();
+			return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
 		}
 
 		public int numOfNegativeLoops() {
-			return (int)loops.stream().filter(Loop::isNegative).count();
+			return (int)loops.stream().filter(Loop::isBalancedLoop).count();
 		}
 
 		public boolean hasPostiveNegativeLoop() {
@@ -343,28 +350,64 @@ public class UseCaseDiagramReader {
 
 	}
 
-	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram, List<IPresentation> selectedPresentation) {
+	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram, List<IPresentation> selectedPresentations) {
 		updateIngas(diagram);
 
 		List<MessagePresentation> mps = new ArrayList<>();
-		recordLoop(mps, selectedPresentation.get(0));
+
+		// 選択されている要素を先頭にループ表示
+		IPresentation startPresentation = selectedPresentations.isEmpty() ? null : selectedPresentations.get(0);
+		recordLoop(mps, startPresentation);
+
 		recordBar(mps);
 		recordLink(mps);
 		recordBar(mps);
 		recordNode(mps);
 
-		return mps;
-	}
+		// 選択されている要素があれば含まれているものだけを表示する
+		if (! selectedPresentations.isEmpty()) {
+			List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
 
-	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram) {
-		updateIngas(diagram);
+			for(int i = 0; i < mps.size(); i++) {
+				MessagePresentation mp = mps.get(i);
 
-		List<MessagePresentation> mps = new ArrayList<>();
-		recordLoop(mps);
-		recordBar(mps);
-		recordLink(mps);
-		recordBar(mps);
-		recordNode(mps);
+				if(
+						// nullだったら表示
+						mp.presentations == null
+
+						// 選択しているIPresentationと同じだったら表示
+						||
+						selectedPresentations.stream()
+						.anyMatch(p -> Stream.of(mp.presentations)
+								.anyMatch(x -> x == p))
+
+						// ノードを選択していたら、つながっているILinkPresentationを表示
+						||
+						selectedPresentations.stream()
+						.filter(INodePresentation.class::isInstance)
+						.map(INodePresentation.class::cast)
+						.anyMatch(np -> Stream.of(mp.presentations)
+								.filter(ILinkPresentation.class::isInstance)
+								.map(ILinkPresentation.class::cast)
+								.anyMatch(l -> l.getTarget().equals(np) || l.getSource().equals(np)))
+
+						// リンクを選択していたら、つながっているINodePresentationを表示
+						||
+						selectedPresentations.stream()
+						.filter(ILinkPresentation.class::isInstance)
+						.map(ILinkPresentation.class::cast)
+						.anyMatch(lp -> Stream.of(mp.presentations)
+								.filter(INodePresentation.class::isInstance)
+								.map(INodePresentation.class::cast)
+								.anyMatch(np -> np.equals(lp.getTarget()) || np.equals(lp.getSource())))
+
+						) {
+
+					selectedMessagePresentation.add(mp);
+				}
+			}
+			mps = selectedMessagePresentation;
+		}
 
 		return mps;
 	}
@@ -405,28 +448,11 @@ public class UseCaseDiagramReader {
 	}
 
 	// ループを表示
-	private static void recordLoop(List<MessagePresentation> mps) {
-		// 自己強化、バランスの順番かつリンク数の小さい順にする
-		Stream.concat(
-				loops.stream().filter(Loop::isPositive).sorted(Comparator.comparing(Loop::size)),
-				loops.stream().filter(Loop::isNegative).sorted(Comparator.comparing(Loop::size))
-				)
-		.forEach(loop ->
-		mps.add(new MessagePresentation(
-				loop.getDescription(),
-				loop.stream()
-				.map(inga -> (IPresentation)inga.p)
-				.toArray(IPresentation[]::new))
-				)
-				);
-	}
-
-	// ループを表示
 	private static void recordLoop(List<MessagePresentation> mps, IPresentation startPresentation) {
 		// 自己強化、バランスの順番かつリンク数の小さい順にする
 		Stream.concat(
-				loops.stream().filter(Loop::isPositive).sorted(Comparator.comparing(Loop::size)),
-				loops.stream().filter(Loop::isNegative).sorted(Comparator.comparing(Loop::size))
+				loops.stream().filter(Loop::isReinforcingLoop).sorted(Comparator.comparing(Loop::size)),
+				loops.stream().filter(Loop::isBalancedLoop).sorted(Comparator.comparing(Loop::size))
 				)
 		.forEach(loop ->
 		mps.add(new MessagePresentation(

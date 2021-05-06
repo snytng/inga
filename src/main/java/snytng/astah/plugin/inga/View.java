@@ -210,6 +210,10 @@ ListSelectionListener
 			deleteButton.setEnabled(false);
 		});
 
+		showLoopOnlyButton.addChangeListener(e -> {
+			updateDiagramView();
+		});
+
 		JPanel panel = new JPanel();
 		panel.setLayout(new BorderLayout());
 		JPanel centerPanel = new JPanel();

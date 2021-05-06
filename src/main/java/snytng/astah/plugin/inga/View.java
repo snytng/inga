@@ -147,7 +147,8 @@ ListSelectionListener
 	JLabel  ingaDiagramLabel = new JLabel("");
 	JButton addButton    = new JButton(VIEW_BUNDLE.getString("Button.Add"));
 	JButton deleteButton = new JButton(VIEW_BUNDLE.getString("Button.Del"));
-	JRadioButton showLoopOnlyButton = new JRadioButton("ループのみ", false);
+	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
+	JRadioButton showPNOnlyButton = new JRadioButton("＋ー要素のみ", false);
 
 	transient IUseCaseDiagram targetDiagram = null;
 	transient IUseCaseDiagram ingaDiagram = null;
@@ -214,6 +215,10 @@ ListSelectionListener
 			updateDiagramView();
 		});
 
+		showPNOnlyButton.addChangeListener(e -> {
+			updateDiagramView();
+		});
+
 		JPanel panel = new JPanel();
 		panel.setLayout(new BorderLayout());
 		JPanel centerPanel = new JPanel();
@@ -227,6 +232,7 @@ ListSelectionListener
 		centerPanel.add(deleteButton);
 		centerPanel.add(ingaDiagramLabel);
 		eastPanel.add(showLoopOnlyButton);
+		eastPanel.add(showPNOnlyButton);
 
 		return panel;
 	}
@@ -407,7 +413,12 @@ ListSelectionListener
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
 				targetDiagram = (IUseCaseDiagram)diagram;
-				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations, showLoopOnlyButton.isSelected());
+				messagePresentations = UseCaseDiagramReader.getMessagePresentation(
+						targetDiagram,
+						selectedPresentations,
+						showLoopOnlyButton.isSelected(),
+						showPNOnlyButton.isSelected()
+						);
 
 				// メッセージをリストへ反映
 				textArea.setListData(

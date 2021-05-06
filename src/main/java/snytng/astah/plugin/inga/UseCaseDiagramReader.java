@@ -177,6 +177,10 @@ public class UseCaseDiagramReader {
 			return loops.size();
 		}
 
+		public boolean hasLoop() {
+			return numOfLoops() > 0;
+		}
+
 		public int numOfPositiveLoops() {
 			return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
 		}
@@ -186,7 +190,7 @@ public class UseCaseDiagramReader {
 		}
 
 		public boolean hasPostiveNegativeLoop() {
-			return (numOfLoops() > 0) && (numOfNegativeLoops() > 0);
+			return (numOfPositiveLoops() > 0) && (numOfNegativeLoops() > 0);
 		}
 	}
 
@@ -314,8 +318,8 @@ public class UseCaseDiagramReader {
 								.anyMatch(s -> s.equals(node)))
 						.collect(Collectors.toList()))
 						)
-				.filter(node ->  ! (showLoopOnly && node.numOfLoops() == 0))
-				.filter(node ->  ! (showPNOnly && (node.numOfPositiveLoops() == 0 || node.numOfNegativeLoops() == 0)))
+				.filter(node ->  ! showLoopOnly || node.hasLoop())
+				.filter(node ->  ! showPNOnly   || node.hasPostiveNegativeLoop())
 				.sorted(Comparator.comparing(LoopElement<INodePresentation>::numOfLoops).reversed())
 				.collect(Collectors.toList());
 
@@ -326,8 +330,8 @@ public class UseCaseDiagramReader {
 							.filter(loop -> loop.contains(inga))
 							.collect(Collectors.toList()))
 					)
-				.filter(link -> ! (showLoopOnly && link.numOfLoops() == 0))
-				.filter(link -> ! (showPNOnly && (link.numOfPositiveLoops() == 0 || link.numOfNegativeLoops() == 0)))
+				.filter(link -> ! showLoopOnly || link.hasLoop())
+				.filter(link -> ! showPNOnly   || link.hasPostiveNegativeLoop())
 				.sorted(Comparator.comparing(LoopElement<Inga>::numOfLoops).reversed())
 				.collect(Collectors.toList());
 

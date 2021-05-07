@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -129,7 +131,7 @@ public class UseCaseDiagramReader {
 			return getDescription(null);
 		}
 
-		public String getDescription(IPresentation startPresentation){
+		private Stream<Inga> getLoopStream(IPresentation startPresentation) {
 			int index = 0;
 			for(int i = 0; i < this.size(); i++) {
 				if(get(i).source == startPresentation || get(i).p == startPresentation) {
@@ -137,9 +139,12 @@ public class UseCaseDiagramReader {
 					break;
 				}
 			}
+			return Stream.concat(this.stream().skip(index), this.stream().limit(index));
+		}
 
+		public String getDescription(IPresentation startPresentation){
 			return getType() + ": " +
-					Stream.concat(this.stream().skip(index), this.stream().limit(index))
+					getLoopStream(startPresentation)
 			.map(inga -> inga.from + " " + inga.getArrowString() + " ")
 			.collect(Collectors.joining());
 		}
@@ -279,6 +284,7 @@ public class UseCaseDiagramReader {
 		return getPositiveIngas().size() + getNegativeIngas().size();
 	}
 
+	private static Set<Inga> ingaSet = new HashSet<>();
 	private static List<Loop> loops = new ArrayList<>();
 	private static List<LoopElement<INodePresentation>> nodes = new ArrayList<>();
 	private static List<LoopElement<Inga>>links = new ArrayList<>();
@@ -293,7 +299,7 @@ public class UseCaseDiagramReader {
 		Set<Inga> positiveIngas = udr.getPositiveIngas();
 		Set<Inga> negativeIngas = udr.getNegativeIngas();
 
-		Set<Inga> ingaSet = new HashSet<>();
+		ingaSet = new HashSet<>();
 		ingaSet.addAll(positiveIngas);
 		ingaSet.addAll(negativeIngas);
 
@@ -342,18 +348,22 @@ public class UseCaseDiagramReader {
 			List<IPresentation> selectedPresentations,
 			boolean showLoopOnly,
 			boolean showPNOnly) {
+
 		updateIngas(diagram, showLoopOnly, showPNOnly);
 
 		List<MessagePresentation> mps = new ArrayList<>();
 
+		recordBar(mps, "ループ");
 		// 選択されている要素を先頭にループ表示
 		IPresentation startPresentation = selectedPresentations.isEmpty() ? null : selectedPresentations.get(0);
 		recordLoop(mps, startPresentation);
 
-		recordBar(mps);
+		recordBar(mps, "リンク");
 		recordLink(mps);
-		recordBar(mps);
+		recordBar(mps, "ノード");
 		recordNode(mps);
+		recordBar(mps, "増減");
+		recordSimulation(mps, startPresentation);
 
 		// 選択されている要素があれば含まれているものだけを表示する
 		if (! selectedPresentations.isEmpty()) {
@@ -404,8 +414,64 @@ public class UseCaseDiagramReader {
 	}
 
 	// 仕切りを追加
-	private static void recordBar(List<MessagePresentation> mps) {
-		mps.add(new MessagePresentation("=====", null));
+	private static void recordBar(List<MessagePresentation> mps, String label) {
+		mps.add(new MessagePresentation("===== " + label, null));
+	}
+
+	// 増減シミュレーションを表示
+	static class SimulationResult {
+		int plus;
+		int minus;
+		public SimulationResult(int plus, int minus) {
+			this.plus = plus;
+			this.minus = minus;
+		}
+	}
+
+	static boolean simPositive = true;
+
+	private static void recordSimulation(List<MessagePresentation> mps, IPresentation startPresentation) {
+		if(! (startPresentation instanceof INodePresentation)) {
+			return;
+		}
+
+		INodePresentation np = (INodePresentation)startPresentation;
+
+		List<INodePresentation> allNodes = ingaSet.stream()
+				.map(inga -> inga.source)
+				.distinct()
+				.collect(Collectors.toList());
+
+		Map<INodePresentation, SimulationResult> simulationResults = new LinkedHashMap<>();
+		allNodes.stream().forEach(node -> simulationResults.put(node, new SimulationResult(0, 0)));
+
+		// 初期ノードを追加
+		simulationResults.put(np, new SimulationResult(1,0));
+		allNodes.remove(np);
+
+		// ループを探索
+		simPositive = true;
+		loops.stream().forEach(loop -> {
+			loop.getLoopStream(np).forEach(inga -> {
+				SimulationResult sr = simulationResults.get(inga.target);
+				simPositive = ! (simPositive ^ inga.positive);
+				if(simPositive) {
+					sr.plus  += 1;
+				} else {
+					sr.minus += 1;
+				}
+			});
+		});
+
+		// ノード増減を表示
+		simulationResults.keySet().stream()
+		.forEach(key -> {
+			SimulationResult rs = simulationResults.get(key);
+			int pm = rs.plus + rs.minus;
+			mps.add(new MessagePresentation(
+					key.getLabel() + " " + pm + " (増加=" + rs.plus + ", 減少=" + rs.minus + ")",
+					new IPresentation[] {key}));
+		});
 	}
 
 	// ノードを表示

@@ -3,6 +3,7 @@ package snytng.astah.plugin.inga;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -285,6 +286,7 @@ public class UseCaseDiagramReader {
 	}
 
 	private static Set<Inga> ingaSet = new HashSet<>();
+	private static Map<INodePresentation, List<Inga>> ingaMap = new HashMap<>();
 	private static List<Loop> loops = new ArrayList<>();
 	private static List<LoopElement<INodePresentation>> nodes = new ArrayList<>();
 	private static List<LoopElement<Inga>>links = new ArrayList<>();
@@ -312,6 +314,9 @@ public class UseCaseDiagramReader {
 				getLoops(uc, ingaSet, new Loop(), loops);
 			}
 		});
+
+		ingaMap = ingaSet.stream()
+		.collect(Collectors.groupingBy(inga -> inga.source));
 
 		nodes = ingaSet.stream()
 				.map(inga -> inga.source)
@@ -343,11 +348,15 @@ public class UseCaseDiagramReader {
 
 	}
 
+	private static boolean showPNOnly = false;
+
 	public static List<MessagePresentation> getMessagePresentation(
 			IUseCaseDiagram diagram,
 			List<IPresentation> selectedPresentations,
 			boolean showLoopOnly,
 			boolean showPNOnly) {
+
+		UseCaseDiagramReader.showPNOnly = showPNOnly;
 
 		updateIngas(diagram, showLoopOnly, showPNOnly);
 
@@ -362,8 +371,6 @@ public class UseCaseDiagramReader {
 		recordLink(mps);
 		recordBar(mps, "ノード");
 		recordNode(mps);
-		recordBar(mps, "増減");
-		recordSimulation(mps, startPresentation);
 
 		// 選択されている要素があれば含まれているものだけを表示する
 		if (! selectedPresentations.isEmpty()) {
@@ -408,6 +415,11 @@ public class UseCaseDiagramReader {
 				}
 			}
 			mps = selectedMessagePresentation;
+
+			// シミュレーション結果は常に表示する
+			recordBar(mps, "シミュレーション");
+			recordSimulation(mps, startPresentation);
+
 		}
 
 		return mps;
@@ -436,41 +448,47 @@ public class UseCaseDiagramReader {
 		}
 
 		INodePresentation np = (INodePresentation)startPresentation;
-
-		List<INodePresentation> allNodes = ingaSet.stream()
-				.map(inga -> inga.source)
-				.distinct()
-				.collect(Collectors.toList());
-
 		Map<INodePresentation, SimulationResult> simulationResults = new LinkedHashMap<>();
-		allNodes.stream().forEach(node -> simulationResults.put(node, new SimulationResult(0, 0)));
-
-		// 初期ノードを追加
-		simulationResults.put(np, new SimulationResult(1,0));
-		allNodes.remove(np);
 
 		// ループを探索
 		simPositive = true;
-		loops.stream().forEach(loop -> {
-			loop.getLoopStream(np).forEach(inga -> {
-				SimulationResult sr = simulationResults.get(inga.target);
-				simPositive = ! (simPositive ^ inga.positive);
-				if(simPositive) {
-					sr.plus  += 1;
-				} else {
-					sr.minus += 1;
-				}
-			});
-		});
+		simulate(np, simPositive, new HashSet<>(ingaSet), simulationResults);
 
 		// ノード増減を表示
 		simulationResults.keySet().stream()
 		.forEach(key -> {
 			SimulationResult rs = simulationResults.get(key);
 			int pm = rs.plus + rs.minus;
-			mps.add(new MessagePresentation(
-					key.getLabel() + " " + pm + " (増加=" + rs.plus + ", 減少=" + rs.minus + ")",
-					new IPresentation[] {key}));
+			if(pm > 0
+					&&
+					! (showPNOnly && (rs.plus == 0 || rs.minus == 0))
+					) {
+				mps.add(new MessagePresentation(
+						key.getLabel() + " " + pm + " (増加=" + rs.plus + ", 減少=" + rs.minus + ")",
+						new IPresentation[] {key}));
+			}
+		});
+	}
+
+	private static void simulate(
+			INodePresentation from,
+			boolean simPositive,
+			Set<Inga> checkedIngaSet,
+			Map<INodePresentation, SimulationResult> simulationResults) {
+		SimulationResult sr = simulationResults.getOrDefault(from,  new SimulationResult(0, 0));
+		if(simPositive) {
+			sr.plus  += 1;
+		} else {
+			sr.minus += 1;
+		}
+		simulationResults.put(from, sr);
+
+		ingaMap.get(from).stream()
+		.forEach(inga -> {
+			if(checkedIngaSet.contains(inga)) {
+				checkedIngaSet.remove(inga);
+				simulate(inga.target, ! (simPositive ^ inga.positive), checkedIngaSet, simulationResults);
+			}
 		});
 	}
 

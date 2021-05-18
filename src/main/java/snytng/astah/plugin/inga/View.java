@@ -152,6 +152,9 @@ ListSelectionListener
 	JLabel            selectPNStringsLabel = new JLabel("記号");
 	JComboBox<String> selectPNStrings = new JComboBox<>();
 
+	JLabel            selectPNSupplierLabel = new JLabel("リンク定義");
+	JComboBox<String> selectPNSupplier = new JComboBox<>();
+
 	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
 	JRadioButton showPNOnlyButton = new JRadioButton("＋－要素のみ", false);
 
@@ -217,19 +220,27 @@ ListSelectionListener
 			deleteButton.setEnabled(false);
 		});
 
-		String[] comboData = Stream.of(UseCaseDiagramReader.Inga.PNStrings)
+		String[] comboPNStrings = Stream.of(UseCaseDiagramReader.Inga.PNStrings)
 				.map(pn -> String.join("", pn))
 				.toArray(String[]::new);
-		selectPNStrings = new JComboBox<>(comboData);
+		selectPNStrings = new JComboBox<>(comboPNStrings);
 		selectPNStrings.addActionListener(e -> {
 			UseCaseDiagramReader.Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
+			updateDiagramView();
+		});
+
+		String[] comboSupplier = Stream.of(UseCaseDiagramReader.IngaSuppliers)
+				.map(pn -> String.join("", pn))
+				.toArray(String[]::new);
+		selectPNSupplier = new JComboBox<>(comboSupplier);
+		selectPNSupplier.addActionListener(e -> {
+			UseCaseDiagramReader.setIngaSupplierIndex(selectPNSupplier.getSelectedIndex());
 			updateDiagramView();
 		});
 
 		showLoopOnlyButton.addChangeListener(e -> {
 			updateDiagramView();
 		});
-
 		showPNOnlyButton.addChangeListener(e -> {
 			updateDiagramView();
 		});
@@ -249,6 +260,9 @@ ListSelectionListener
 
 		centerPanel.add(selectPNStringsLabel);
 		centerPanel.add(selectPNStrings);
+
+		centerPanel.add(selectPNSupplierLabel);
+		centerPanel.add(selectPNSupplier);
 
 		eastPanel.add(showLoopOnlyButton);
 		eastPanel.add(showPNOnlyButton);
@@ -433,8 +447,8 @@ ListSelectionListener
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
 				targetDiagram = (IUseCaseDiagram)diagram;
-				messagePresentations = UseCaseDiagramReader.getMessagePresentation(
-						targetDiagram,
+				messagePresentations = new UseCaseDiagramReader((IUseCaseDiagram)diagram)
+						.getMessagePresentation(
 						selectedPresentations,
 						showLoopOnlyButton.isSelected(),
 						showPNOnlyButton.isSelected()

@@ -41,10 +41,10 @@ public class UseCaseDiagramReader {
 		logger.setUseParentHandlers(false);
 	}
 
-	private IUseCaseDiagram diagram = null;
+	private static IUseCaseDiagram diagram = null;
 
-	public UseCaseDiagramReader(IUseCaseDiagram diagram) {
-		this.diagram = diagram;
+	public UseCaseDiagramReader(IUseCaseDiagram d) {
+		diagram = d;
 	}
 
 	/**
@@ -217,12 +217,62 @@ public class UseCaseDiagramReader {
 		}
 	}
 
+	static int ingaSupplierIndex = 0;
+	public static void setIngaSupplierIndex(int n) {
+		ingaSupplierIndex = n % IngaSuppliers.length;
+	}
+
+	static String[] IngaSuppliers = new String[] {
+		"Default",
+		"SO",
+		"＋－",
+		"同逆"
+	};
+
+
 	/**
 	 * ユースケース図に含まれる正リンクを取得する
-	 * @return ユースケース配列
+	 * @return IngaのSet
 	 */
 	public Set<Inga> getPositiveIngas(){
+		switch(ingaSupplierIndex){
+		case 0:
+			return getNavigableAssociations();
+		case 1:
+			return getAssociations("S", true);
+		case 2:
+			return getAssociations("+", true);
+		case 3:
+			return getAssociations("同", true);
+		default:
+			return new HashSet<>();
+		}
+	}
 
+	/**
+	 * ユースケース図に含まれる負リンクを取得する
+	 * @return IngaのSet
+	 */
+	public Set<Inga> getNegativeIngas(){
+		switch(ingaSupplierIndex){
+		case 0:
+			return getDependencies();
+		case 1:
+			return getAssociations("O", false);
+		case 2:
+			return getAssociations("-", false);
+		case 3:
+			return getAssociations("逆", false);
+		default:
+			return new HashSet<>();
+		}
+	}
+
+	/**
+	 * ユースケース図に含まれる方向を持った関連を取得する
+	 * @return IngaのSet
+	 */
+	static Set<Inga> getNavigableAssociations(){
 		Set<Inga> ret = new HashSet<>();
 
 		try {
@@ -255,10 +305,10 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * ユースケース図に含まれる負リンクを取得する
-	 * @return ユースケース配列
+	 * ユースケース図に含まれる依存リンクを取得する
+	 * @return IngaのSet
 	 */
-	public Set<Inga> getNegativeIngas(){
+	static Set<Inga> getDependencies(){
 
 		Set<Inga> ret = new HashSet<>();
 
@@ -273,6 +323,49 @@ public class UseCaseDiagramReader {
 
 		return ret;
 	}
+
+	/**
+	 * ユースケース図に含まれる特定の関連名が入っているリンクを取得する
+	 * @return IngaのSet
+	 */
+	static Set<Inga> getAssociations(String relationName, boolean positive){
+
+		Set<Inga> ret = new HashSet<>();
+
+		try {
+			Arrays.stream(diagram.getPresentations())
+			.filter(p -> p.getModel() instanceof IAssociation)
+			.map(ILinkPresentation.class::cast)
+			.filter(lp -> lp.getLabel().equals(relationName))
+			.forEach(lp -> {
+				IAssociation a = (IAssociation)lp.getModel();
+				INodePresentation source = lp.getSource();
+				INodePresentation target = lp.getTarget();
+				IAttribute[] attrs = a.getMemberEnds();
+				IAttribute sourceAttr = attrs[0];
+				IAttribute targetAttr = attrs[1];
+				if(sourceAttr.getNavigability().equals("Unspecified") &&
+						targetAttr.getNavigability().equals("Navigable")
+						){
+					// no action
+				}
+				else if(sourceAttr.getNavigability().equals("Navigable") &&
+						targetAttr.getNavigability().equals("Unspecified")
+						){
+					INodePresentation temp = target;
+					target = source;
+					source = temp;
+				}
+				ret.add(new Inga(lp, source, target, positive));
+			});
+		}catch(Exception e){
+			logger.log(Level.WARNING, e.getMessage());
+		}
+
+		return ret;
+	}
+
+
 
 	/**
 	 * ユースケース図に含まれる線の数を取得する
@@ -344,8 +437,7 @@ public class UseCaseDiagramReader {
 
 	private static boolean showPNOnly = false;
 
-	public static List<MessagePresentation> getMessagePresentation(
-			IUseCaseDiagram diagram,
+	public List<MessagePresentation> getMessagePresentation(
 			List<IPresentation> selectedPresentations,
 			boolean showLoopOnly,
 			boolean showPNOnly) {

@@ -150,6 +150,7 @@ ListSelectionListener
 	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
 	JRadioButton showPNOnlyButton = new JRadioButton("＋ー要素のみ", false);
 
+	private final String INGA_DIAGRAM_PREFIX = "inga";
 	transient IUseCaseDiagram targetDiagram = null;
 	transient IUseCaseDiagram ingaDiagram = null;
 	transient List<IPresentation> ingaPresentationList = new ArrayList<>();
@@ -171,9 +172,9 @@ ListSelectionListener
 
 					long count = Arrays.stream(projectAccessor.getProject().getDiagrams())
 							.map(IDiagram::getName)
-							.filter(n -> n.startsWith("inga"))
+							.filter(n -> n.startsWith(INGA_DIAGRAM_PREFIX))
 							.count();
-					String diagramName = "inga" + Long.toString(count);
+					String diagramName = INGA_DIAGRAM_PREFIX + Long.toString(count);
 
 					TransactionManager.beginTransaction();
 					ingaDiagram = usecaseDiagramEditor.createUseCaseDiagram(projectAccessor.getProject(), diagramName);
@@ -272,8 +273,10 @@ ListSelectionListener
 					.collect(Collectors.toList());
 
 			for(INodePresentation np : nps) {
-				if(np.getType().equals("UseCase")) {
+				if(np.getType().equals("UseCase") || np.getType().equals("Class")) {
 					INodePresentation nnp = usecaseDiagramEditor.createNodePresentation(np.getModel(), np.getLocation());
+					ingaCreatedNodePresentationList.add(nnp);
+
 					nnp.setHeight(np.getHeight());
 					nnp.setWidth(np.getWidth());
 					nnp.getProperties().keySet().stream()
@@ -286,7 +289,6 @@ ListSelectionListener
 						}
 					});
 
-					ingaCreatedNodePresentationList.add(nnp);
 				} else {
 					logger.log(Level.FINE, () -> "np type=" + np.getType());
 				}

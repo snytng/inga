@@ -20,7 +20,6 @@ import com.change_vision.jude.api.inf.model.IAssociation;
 import com.change_vision.jude.api.inf.model.IAttribute;
 import com.change_vision.jude.api.inf.model.IDependency;
 import com.change_vision.jude.api.inf.model.INamedElement;
-import com.change_vision.jude.api.inf.model.IUseCase;
 import com.change_vision.jude.api.inf.model.IUseCaseDiagram;
 import com.change_vision.jude.api.inf.presentation.ILinkPresentation;
 import com.change_vision.jude.api.inf.presentation.INodePresentation;
@@ -107,6 +106,7 @@ public class UseCaseDiagramReader {
 	/**
 	 * Loop - the cyclic path of Ingas
 	 */
+	@SuppressWarnings("serial")
 	static class Loop extends ArrayList<Inga> implements List<Inga> {
 
 		public Loop() {
@@ -201,26 +201,6 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * ユースケース図に含まれるユースケースを取得する
-	 * @return ユースケース配列
-	 */
-	public Set<IPresentation> getUseCases(){
-
-		Set<IPresentation> us = new HashSet<>();
-
-		try {
-			Stream.of(diagram.getPresentations())
-			.filter(p -> p.getModel() instanceof IUseCase)
-			.forEach(us::add);
-		}catch(Exception e){
-			logger.log(Level.WARNING, e.getMessage());
-		}
-
-		return us;
-	}
-
-
-	/**
 	 * ユースケース図に含まれる正リンクを取得する
 	 * @return ユースケース配列
 	 */
@@ -308,11 +288,8 @@ public class UseCaseDiagramReader {
 		loops = new ArrayList<>();
 		ingaSet.stream().forEach(inga -> {
 			INodePresentation node = inga.p.getSource();
-			if(node.getType().equals("UseCase")) {
-				logger.log(Level.FINE, () -> "##### p " + node.getLabel());
-				IUseCase uc = (IUseCase)node.getModel();
-				getLoops(uc, ingaSet, new Loop(), loops);
-			}
+			logger.log(Level.FINE, () -> "##### p " + node.getLabel());
+			getLoops(node, ingaSet, new Loop(), loops);
 		});
 
 		ingaMap = ingaSet.stream()
@@ -540,14 +517,14 @@ public class UseCaseDiagramReader {
 	}
 
 	private static void getLoops(
-			IUseCase currentUC,
+			INodePresentation source,
 			Set<Inga> ingas,
 			Loop loop,
 			List<Loop> loops
 			){
 
 		ingas.stream()
-		.filter(inga -> inga.from == currentUC)
+		.filter(inga -> inga.source == source)
 		.forEach(inga -> {
 			logger.log(Level.FINE, () -> "##### inga " + inga.from + "->" + inga.to);
 
@@ -573,7 +550,7 @@ public class UseCaseDiagramReader {
 			else {
 				logger.log(Level.FINE, "not loop go next");
 				Loop nl = new Loop(loop, inga);
-				getLoops((IUseCase)inga.to, ingas, nl, loops);
+				getLoops(inga.target, ingas, nl, loops);
 			}
 
 		});

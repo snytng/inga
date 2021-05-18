@@ -75,16 +75,34 @@ public class UseCaseDiagramReader {
 			return ! positive;
 		}
 
+		static int nPNString = 0;
+		public static void setPNStringIndex(int n) {
+			nPNString = n % PNStrings.length;
+		}
+
+		static final int POSITIVE_INDEX = 0;
+		static final int NEGATIVE_INDEX = 1;
+		static final String[][] PNStrings = new String[][] {
+			{"➚", "➘"},
+			{"S", "O"},
+			{"＋", "－"},
+			{"同", "逆"}
+			};
+
 		public String toString(){
 			if(positive){
-				return "➚「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
+				return PNStrings[nPNString][POSITIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
 			} else {
-				return "➘「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
+				return PNStrings[nPNString][NEGATIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
 			}
 		}
 
 		public String getArrowString() {
-			return this.positive ? "-(+)->" : "-(-)->";
+			if(positive){
+				return "-(" + PNStrings[nPNString][POSITIVE_INDEX] + ")->";
+			} else {
+				return "-(" + PNStrings[nPNString][NEGATIVE_INDEX] + ")->";
+			}
 		}
 
 		public int hashCode(){
@@ -128,11 +146,7 @@ public class UseCaseDiagramReader {
 			return isReinforcingLoop() ? "自己強化" : "バランス";
 		}
 
-		public String getDescription(){
-			return getDescription(null);
-		}
-
-		private Stream<Inga> getLoopStream(IPresentation startPresentation) {
+		private List<Inga> getIngaLoop(IPresentation startPresentation) {
 			int index = 0;
 			for(int i = 0; i < this.size(); i++) {
 				if(get(i).source == startPresentation || get(i).p == startPresentation) {
@@ -140,14 +154,17 @@ public class UseCaseDiagramReader {
 					break;
 				}
 			}
-			return Stream.concat(this.stream().skip(index), this.stream().limit(index));
+			return Stream.concat(this.stream().skip(index), this.stream().limit(index))
+					.collect(Collectors.toList());
 		}
 
 		public String getDescription(IPresentation startPresentation){
+			List<Inga> ingaLoop = getIngaLoop(startPresentation);
 			return getType() + ": " +
-					getLoopStream(startPresentation)
+					ingaLoop.stream()
 			.map(inga -> inga.from + " " + inga.getArrowString() + " ")
-			.collect(Collectors.joining());
+			.collect(Collectors.joining())
+			+ ingaLoop.get(0).from;
 		}
 
 		public boolean isReinforcingLoop() {

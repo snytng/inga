@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -147,8 +148,12 @@ ListSelectionListener
 	JLabel  ingaDiagramLabel = new JLabel("");
 	JButton addButton    = new JButton(VIEW_BUNDLE.getString("Button.Add"));
 	JButton deleteButton = new JButton(VIEW_BUNDLE.getString("Button.Del"));
+
+	JLabel            selectPNStringsLabel = new JLabel("記号");
+	JComboBox<String> selectPNStrings = new JComboBox<>();
+
 	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
-	JRadioButton showPNOnlyButton = new JRadioButton("＋ー要素のみ", false);
+	JRadioButton showPNOnlyButton = new JRadioButton("＋－要素のみ", false);
 
 	private final String INGA_DIAGRAM_PREFIX = "inga";
 	transient IUseCaseDiagram targetDiagram = null;
@@ -212,6 +217,15 @@ ListSelectionListener
 			deleteButton.setEnabled(false);
 		});
 
+		String[] comboData = Stream.of(UseCaseDiagramReader.Inga.PNStrings)
+				.map(pn -> String.join("", pn))
+				.toArray(String[]::new);
+		selectPNStrings = new JComboBox<>(comboData);
+		selectPNStrings.addActionListener(e -> {
+			UseCaseDiagramReader.Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
+			updateDiagramView();
+		});
+
 		showLoopOnlyButton.addChangeListener(e -> {
 			updateDiagramView();
 		});
@@ -232,6 +246,10 @@ ListSelectionListener
 		centerPanel.add(addButton);
 		centerPanel.add(deleteButton);
 		centerPanel.add(ingaDiagramLabel);
+
+		centerPanel.add(selectPNStringsLabel);
+		centerPanel.add(selectPNStrings);
+
 		eastPanel.add(showLoopOnlyButton);
 		eastPanel.add(showPNOnlyButton);
 

@@ -16,9 +16,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -147,6 +149,16 @@ ListSelectionListener
 	JButton addButton    = new JButton(VIEW_BUNDLE.getString("Button.Add"));
 	JButton deleteButton = new JButton(VIEW_BUNDLE.getString("Button.Del"));
 
+	JLabel            selectPNStringsLabel = new JLabel("記号");
+	JComboBox<String> selectPNStrings = new JComboBox<>();
+
+	JLabel            selectPNSupplierLabel = new JLabel("リンク定義");
+	JComboBox<String> selectPNSupplier = new JComboBox<>();
+
+	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
+	JRadioButton showPNOnlyButton = new JRadioButton("＋－要素のみ", false);
+
+	private final String INGA_DIAGRAM_PREFIX = "inga";
 	transient IUseCaseDiagram targetDiagram = null;
 	transient IUseCaseDiagram ingaDiagram = null;
 	transient List<IPresentation> ingaPresentationList = new ArrayList<>();
@@ -168,9 +180,9 @@ ListSelectionListener
 
 					long count = Arrays.stream(projectAccessor.getProject().getDiagrams())
 							.map(IDiagram::getName)
-							.filter(n -> n.startsWith("inga"))
+							.filter(n -> n.startsWith(INGA_DIAGRAM_PREFIX))
 							.count();
-					String diagramName = "inga" + Long.toString(count);
+					String diagramName = INGA_DIAGRAM_PREFIX + Long.toString(count);
 
 					TransactionManager.beginTransaction();
 					ingaDiagram = usecaseDiagramEditor.createUseCaseDiagram(projectAccessor.getProject(), diagramName);
@@ -208,12 +220,52 @@ ListSelectionListener
 			deleteButton.setEnabled(false);
 		});
 
+		String[] comboPNStrings = Stream.of(UseCaseDiagramReader.Inga.PNStrings)
+				.map(pn -> String.join("", pn))
+				.toArray(String[]::new);
+		selectPNStrings = new JComboBox<>(comboPNStrings);
+		selectPNStrings.addActionListener(e -> {
+			UseCaseDiagramReader.Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
+			updateDiagramView();
+		});
+
+		String[] comboSupplier = Stream.of(UseCaseDiagramReader.IngaSuppliers)
+				.map(pn -> String.join("", pn))
+				.toArray(String[]::new);
+		selectPNSupplier = new JComboBox<>(comboSupplier);
+		selectPNSupplier.addActionListener(e -> {
+			UseCaseDiagramReader.setIngaSupplierIndex(selectPNSupplier.getSelectedIndex());
+			updateDiagramView();
+		});
+
+		showLoopOnlyButton.addChangeListener(e -> {
+			updateDiagramView();
+		});
+		showPNOnlyButton.addChangeListener(e -> {
+			updateDiagramView();
+		});
+
 		JPanel panel = new JPanel();
-		panel.add(controllerLabel);
-		panel.add(diagramLabel);
-		panel.add(addButton);
-		panel.add(deleteButton);
-		panel.add(ingaDiagramLabel);
+		panel.setLayout(new BorderLayout());
+		JPanel centerPanel = new JPanel();
+		JPanel eastPanel = new JPanel();
+		panel.add(centerPanel, BorderLayout.CENTER);
+		panel.add(eastPanel, BorderLayout.EAST);
+
+		centerPanel.add(controllerLabel);
+		centerPanel.add(diagramLabel);
+		centerPanel.add(addButton);
+		centerPanel.add(deleteButton);
+		centerPanel.add(ingaDiagramLabel);
+
+		centerPanel.add(selectPNStringsLabel);
+		centerPanel.add(selectPNStrings);
+
+		centerPanel.add(selectPNSupplierLabel);
+		centerPanel.add(selectPNSupplier);
+
+		eastPanel.add(showLoopOnlyButton);
+		eastPanel.add(showPNOnlyButton);
 
 		return panel;
 	}
@@ -253,8 +305,10 @@ ListSelectionListener
 					.collect(Collectors.toList());
 
 			for(INodePresentation np : nps) {
-				if(np.getType().equals("UseCase")) {
+				if(np.getType().equals("UseCase") || np.getType().equals("Class")) {
 					INodePresentation nnp = usecaseDiagramEditor.createNodePresentation(np.getModel(), np.getLocation());
+					ingaCreatedNodePresentationList.add(nnp);
+
 					nnp.setHeight(np.getHeight());
 					nnp.setWidth(np.getWidth());
 					nnp.getProperties().keySet().stream()
@@ -267,7 +321,6 @@ ListSelectionListener
 						}
 					});
 
-					ingaCreatedNodePresentationList.add(nnp);
 				} else {
 					logger.log(Level.FINE, () -> "np type=" + np.getType());
 				}
@@ -394,8 +447,12 @@ ListSelectionListener
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
 				targetDiagram = (IUseCaseDiagram)diagram;
-				usecaseDiagramEditor.setDiagram(targetDiagram);
-				messagePresentations = UseCaseDiagramReader.getMessagePresentation(targetDiagram, selectedPresentations);
+				messagePresentations = new UseCaseDiagramReader((IUseCaseDiagram)diagram)
+						.getMessagePresentation(
+						selectedPresentations,
+						showLoopOnlyButton.isSelected(),
+						showPNOnlyButton.isSelected()
+						);
 
 				// メッセージをリストへ反映
 				textArea.setListData(

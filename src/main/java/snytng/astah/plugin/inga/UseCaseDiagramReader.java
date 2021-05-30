@@ -3,8 +3,11 @@ package snytng.astah.plugin.inga;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -17,7 +20,6 @@ import com.change_vision.jude.api.inf.model.IAssociation;
 import com.change_vision.jude.api.inf.model.IAttribute;
 import com.change_vision.jude.api.inf.model.IDependency;
 import com.change_vision.jude.api.inf.model.INamedElement;
-import com.change_vision.jude.api.inf.model.IUseCase;
 import com.change_vision.jude.api.inf.model.IUseCaseDiagram;
 import com.change_vision.jude.api.inf.presentation.ILinkPresentation;
 import com.change_vision.jude.api.inf.presentation.INodePresentation;
@@ -39,14 +41,14 @@ public class UseCaseDiagramReader {
 		logger.setUseParentHandlers(false);
 	}
 
-	private IUseCaseDiagram diagram = null;
+	private static IUseCaseDiagram diagram = null;
 
-	public UseCaseDiagramReader(IUseCaseDiagram diagram) {
-		this.diagram = diagram;
+	public UseCaseDiagramReader(IUseCaseDiagram d) {
+		diagram = d;
 	}
 
 	/**
-	 * Inga - case and effect
+	 * Inga - cause and effect
 	 */
 	static class Inga {
 		ILinkPresentation p;
@@ -73,16 +75,34 @@ public class UseCaseDiagramReader {
 			return ! positive;
 		}
 
+		static int nPNString = 0;
+		public static void setPNStringIndex(int n) {
+			nPNString = n % PNStrings.length;
+		}
+
+		static final int POSITIVE_INDEX = 0;
+		static final int NEGATIVE_INDEX = 1;
+		static final String[][] PNStrings = new String[][] {
+			{"➚", "➘"},
+			{"S", "O"},
+			{"＋", "－"},
+			{"同", "逆"}
+			};
+
 		public String toString(){
 			if(positive){
-				return "➚「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
+				return PNStrings[nPNString][POSITIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
 			} else {
-				return "➘「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
+				return PNStrings[nPNString][NEGATIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
 			}
 		}
 
 		public String getArrowString() {
-			return this.positive ? "-(+)->" : "-(-)->";
+			if(positive){
+				return "-(" + PNStrings[nPNString][POSITIVE_INDEX] + ")->";
+			} else {
+				return "-(" + PNStrings[nPNString][NEGATIVE_INDEX] + ")->";
+			}
 		}
 
 		public int hashCode(){
@@ -102,8 +122,9 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * Loop the cyclic path of ingas
+	 * Loop - the cyclic path of Ingas
 	 */
+	@SuppressWarnings("serial")
 	static class Loop extends ArrayList<Inga> implements List<Inga> {
 
 		public Loop() {
@@ -125,11 +146,7 @@ public class UseCaseDiagramReader {
 			return isReinforcingLoop() ? "自己強化" : "バランス";
 		}
 
-		public String getDescription(){
-			return getDescription(null);
-		}
-
-		public String getDescription(IPresentation startPresentation){
+		private List<Inga> getIngaLoop(IPresentation startPresentation) {
 			int index = 0;
 			for(int i = 0; i < this.size(); i++) {
 				if(get(i).source == startPresentation || get(i).p == startPresentation) {
@@ -137,11 +154,17 @@ public class UseCaseDiagramReader {
 					break;
 				}
 			}
+			return Stream.concat(this.stream().skip(index), this.stream().limit(index))
+					.collect(Collectors.toList());
+		}
 
+		public String getDescription(IPresentation startPresentation){
+			List<Inga> ingaLoop = getIngaLoop(startPresentation);
 			return getType() + ": " +
-					Stream.concat(this.stream().skip(index), this.stream().limit(index))
+					ingaLoop.stream()
 			.map(inga -> inga.from + " " + inga.getArrowString() + " ")
-			.collect(Collectors.joining());
+			.collect(Collectors.joining())
+			+ ingaLoop.get(0).from;
 		}
 
 		public boolean isReinforcingLoop() {
@@ -153,22 +176,32 @@ public class UseCaseDiagramReader {
 			return ! isReinforcingLoop();
 		}
 
+		@Override
 		public String toString() {
 			return this.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->"));
 		}
 
 	}
 
-	static class Node {
-		INodePresentation p;
-		List<Loop> loops = new ArrayList<>();
+	static class LoopElement<T> {
+		private T element;
+		private List<Loop> loops = new ArrayList<>();
 
-		public Node(INodePresentation p) {
-			this.p = p;
+		public LoopElement(T element, List<Loop> loops) {
+			this.element = element;
+			this.loops = loops;
+		}
+
+		public T getElement() {
+			return element;
 		}
 
 		public int numOfLoops() {
 			return loops.size();
+		}
+
+		public boolean hasLoop() {
+			return numOfLoops() > 0;
 		}
 
 		public int numOfPositiveLoops() {
@@ -180,62 +213,66 @@ public class UseCaseDiagramReader {
 		}
 
 		public boolean hasPostiveNegativeLoop() {
-			return (numOfLoops() > 0) && (numOfNegativeLoops() > 0);
+			return (numOfPositiveLoops() > 0) && (numOfNegativeLoops() > 0);
 		}
 	}
 
-	static class Link {
-		Inga inga;
-		List<Loop> loops = new ArrayList<>();
-
-		public Link(Inga inga) {
-			this.inga = inga;
-		}
-
-		public int numOfLoops() {
-			return loops.size();
-		}
-
-		public int numOfPositiveLoops() {
-			return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
-		}
-
-		public int numOfNegativeLoops() {
-			return (int)loops.stream().filter(Loop::isBalancedLoop).count();
-		}
-
-		public boolean hasPostiveNegativeLoop() {
-			return (numOfLoops() > 0) && (numOfNegativeLoops() > 0);
-		}
+	static int ingaSupplierIndex = 0;
+	public static void setIngaSupplierIndex(int n) {
+		ingaSupplierIndex = n % IngaSuppliers.length;
 	}
 
-
-	/**
-	 * ユースケース図に含まれるユースケースを取得する
-	 * @return ユースケース配列
-	 */
-	public Set<IPresentation> getUseCases(){
-
-		Set<IPresentation> us = new HashSet<>();
-
-		try {
-			Stream.of(diagram.getPresentations())
-			.filter(p -> p.getModel() instanceof IUseCase)
-			.forEach(us::add);
-		}catch(Exception e){
-			logger.log(Level.WARNING, e.getMessage());
-		}
-
-		return us;
-	}
+	static String[] IngaSuppliers = new String[] {
+		"Default",
+		"SO",
+		"＋－",
+		"同逆"
+	};
 
 
 	/**
 	 * ユースケース図に含まれる正リンクを取得する
-	 * @return ユースケース配列
+	 * @return IngaのSet
 	 */
 	public Set<Inga> getPositiveIngas(){
+		switch(ingaSupplierIndex){
+		case 0:
+			return getNavigableAssociations();
+		case 1:
+			return getAssociations("S", true);
+		case 2:
+			return getAssociations("+", true);
+		case 3:
+			return getAssociations("同", true);
+		default:
+			return new HashSet<>();
+		}
+	}
 
+	/**
+	 * ユースケース図に含まれる負リンクを取得する
+	 * @return IngaのSet
+	 */
+	public Set<Inga> getNegativeIngas(){
+		switch(ingaSupplierIndex){
+		case 0:
+			return getDependencies();
+		case 1:
+			return getAssociations("O", false);
+		case 2:
+			return getAssociations("-", false);
+		case 3:
+			return getAssociations("逆", false);
+		default:
+			return new HashSet<>();
+		}
+	}
+
+	/**
+	 * ユースケース図に含まれる方向を持った関連を取得する
+	 * @return IngaのSet
+	 */
+	static Set<Inga> getNavigableAssociations(){
 		Set<Inga> ret = new HashSet<>();
 
 		try {
@@ -268,10 +305,10 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
-	 * ユースケース図に含まれる負リンクを取得する
-	 * @return ユースケース配列
+	 * ユースケース図に含まれる依存リンクを取得する
+	 * @return IngaのSet
 	 */
-	public Set<Inga> getNegativeIngas(){
+	static Set<Inga> getDependencies(){
 
 		Set<Inga> ret = new HashSet<>();
 
@@ -288,6 +325,49 @@ public class UseCaseDiagramReader {
 	}
 
 	/**
+	 * ユースケース図に含まれる特定の関連名が入っているリンクを取得する
+	 * @return IngaのSet
+	 */
+	static Set<Inga> getAssociations(String relationName, boolean positive){
+
+		Set<Inga> ret = new HashSet<>();
+
+		try {
+			Arrays.stream(diagram.getPresentations())
+			.filter(p -> p.getModel() instanceof IAssociation)
+			.map(ILinkPresentation.class::cast)
+			.filter(lp -> lp.getLabel().equals(relationName))
+			.forEach(lp -> {
+				IAssociation a = (IAssociation)lp.getModel();
+				INodePresentation source = lp.getSource();
+				INodePresentation target = lp.getTarget();
+				IAttribute[] attrs = a.getMemberEnds();
+				IAttribute sourceAttr = attrs[0];
+				IAttribute targetAttr = attrs[1];
+				if(sourceAttr.getNavigability().equals("Unspecified") &&
+						targetAttr.getNavigability().equals("Navigable")
+						){
+					// no action
+				}
+				else if(sourceAttr.getNavigability().equals("Navigable") &&
+						targetAttr.getNavigability().equals("Unspecified")
+						){
+					INodePresentation temp = target;
+					target = source;
+					source = temp;
+				}
+				ret.add(new Inga(lp, source, target, positive));
+			});
+		}catch(Exception e){
+			logger.log(Level.WARNING, e.getMessage());
+		}
+
+		return ret;
+	}
+
+
+
+	/**
 	 * ユースケース図に含まれる線の数を取得する
 	 * @return メッセージ数
 	 */
@@ -296,72 +376,86 @@ public class UseCaseDiagramReader {
 	}
 
 	private static Set<Inga> ingaSet = new HashSet<>();
+	private static Map<INodePresentation, List<Inga>> ingaMap = new HashMap<>();
 	private static List<Loop> loops = new ArrayList<>();
-	private static List<Node> nodes = new ArrayList<>();
-	private static List<Link> links = new ArrayList<>();
+	private static List<LoopElement<INodePresentation>> nodes = new ArrayList<>();
+	private static List<LoopElement<Inga>>links = new ArrayList<>();
 
-	private static void updateIngas(IUseCaseDiagram diagram) {
+	private static void updateIngas(
+			IUseCaseDiagram diagram,
+			boolean showLoopOnly,
+			boolean showPNOnly
+			) {
 		UseCaseDiagramReader udr = new UseCaseDiagramReader(diagram);
 
 		Set<Inga> positiveIngas = udr.getPositiveIngas();
-		Set<Inga> negativeINgas = udr.getNegativeIngas();
+		Set<Inga> negativeIngas = udr.getNegativeIngas();
 
 		ingaSet = new HashSet<>();
 		ingaSet.addAll(positiveIngas);
-		ingaSet.addAll(negativeINgas);
+		ingaSet.addAll(negativeIngas);
 
 		loops = new ArrayList<>();
 		ingaSet.stream().forEach(inga -> {
 			INodePresentation node = inga.p.getSource();
-			if(node.getType().equals("UseCase")) {
-				logger.log(Level.FINE, () -> "##### p " + node.getLabel());
-				IUseCase uc = (IUseCase)node.getModel();
-				getLoops(uc, ingaSet, new Loop(), loops);
-			}
+			logger.log(Level.FINE, () -> "##### p " + node.getLabel());
+			getLoops(node, ingaSet, new Loop(), loops);
 		});
+
+		ingaMap = ingaSet.stream()
+		.collect(Collectors.groupingBy(inga -> inga.source));
 
 		nodes = ingaSet.stream()
 				.map(inga -> inga.source)
 				.distinct()
-				.map(n -> {
-					Node node = new Node(n);
-					node.loops = loops.stream()
-							.filter(ingas -> ingas.stream()
-									.map(inga -> inga.source)
-									.anyMatch(s -> s.equals(n)))
-							.collect(Collectors.toList());
-					return node;
-					})
-				.filter(node -> node.numOfLoops() > 0)
-				.sorted(Comparator.comparing(Node::numOfLoops).reversed())
+				.map(node -> new LoopElement<>(
+						node,
+						loops.stream()
+						.filter(ingas -> ingas.stream()
+								.map(inga -> inga.source)
+								.anyMatch(s -> s.equals(node)))
+						.collect(Collectors.toList()))
+						)
+				.filter(node ->  ! showLoopOnly || node.hasLoop())
+				.filter(node ->  ! showPNOnly   || node.hasPostiveNegativeLoop())
+				.sorted(Comparator.comparing(LoopElement<INodePresentation>::numOfLoops).reversed())
 				.collect(Collectors.toList());
 
 		links = ingaSet.stream()
-				.map(inga -> {
-					Link link = new Link(inga);
-					link.loops = loops.stream()
+				.map(inga -> new LoopElement<>(
+							inga,
+							loops.stream()
 							.filter(loop -> loop.contains(inga))
-							.collect(Collectors.toList());
-					return link;
-					})
-				.filter(link -> link.numOfLoops() > 0)
-				.sorted(Comparator.comparing(Link::numOfLoops).reversed())
+							.collect(Collectors.toList()))
+					)
+				.filter(link -> ! showLoopOnly || link.hasLoop())
+				.filter(link -> ! showPNOnly   || link.hasPostiveNegativeLoop())
+				.sorted(Comparator.comparing(LoopElement<Inga>::numOfLoops).reversed())
 				.collect(Collectors.toList());
 
 	}
 
-	public static List<MessagePresentation> getMessagePresentation(IUseCaseDiagram diagram, List<IPresentation> selectedPresentations) {
-		updateIngas(diagram);
+	private static boolean showPNOnly = false;
+
+	public List<MessagePresentation> getMessagePresentation(
+			List<IPresentation> selectedPresentations,
+			boolean showLoopOnly,
+			boolean showPNOnly) {
+
+		UseCaseDiagramReader.showPNOnly = showPNOnly;
+
+		updateIngas(diagram, showLoopOnly, showPNOnly);
 
 		List<MessagePresentation> mps = new ArrayList<>();
 
+		recordBar(mps, "ループ");
 		// 選択されている要素を先頭にループ表示
 		IPresentation startPresentation = selectedPresentations.isEmpty() ? null : selectedPresentations.get(0);
 		recordLoop(mps, startPresentation);
 
-		recordBar(mps);
+		recordBar(mps, "リンク");
 		recordLink(mps);
-		recordBar(mps);
+		recordBar(mps, "ノード");
 		recordNode(mps);
 
 		// 選択されている要素があれば含まれているものだけを表示する
@@ -407,14 +501,81 @@ public class UseCaseDiagramReader {
 				}
 			}
 			mps = selectedMessagePresentation;
+
+			// シミュレーション結果は常に表示する
+			recordBar(mps, "シミュレーション");
+			recordSimulation(mps, startPresentation);
+
 		}
 
 		return mps;
 	}
 
 	// 仕切りを追加
-	private static void recordBar(List<MessagePresentation> mps) {
-		mps.add(new MessagePresentation("=====", null));
+	private static void recordBar(List<MessagePresentation> mps, String label) {
+		mps.add(new MessagePresentation("===== " + label, null));
+	}
+
+	// 増減シミュレーションを表示
+	static class SimulationResult {
+		int plus;
+		int minus;
+		public SimulationResult(int plus, int minus) {
+			this.plus = plus;
+			this.minus = minus;
+		}
+	}
+
+	static boolean simPositive = true;
+
+	private static void recordSimulation(List<MessagePresentation> mps, IPresentation startPresentation) {
+		if(! (startPresentation instanceof INodePresentation)) {
+			return;
+		}
+
+		INodePresentation np = (INodePresentation)startPresentation;
+		Map<INodePresentation, SimulationResult> simulationResults = new LinkedHashMap<>();
+
+		// ループを探索
+		simPositive = true;
+		simulate(np, simPositive, new HashSet<>(ingaSet), simulationResults);
+
+		// ノード増減を表示
+		simulationResults.keySet().stream()
+		.forEach(key -> {
+			SimulationResult rs = simulationResults.get(key);
+			int pm = rs.plus + rs.minus;
+			if(pm > 0
+					&&
+					! (showPNOnly && (rs.plus == 0 || rs.minus == 0))
+					) {
+				mps.add(new MessagePresentation(
+						key.getLabel() + " " + pm + " (増加=" + rs.plus + ", 減少=" + rs.minus + ")",
+						new IPresentation[] {key}));
+			}
+		});
+	}
+
+	private static void simulate(
+			INodePresentation from,
+			boolean simPositive,
+			Set<Inga> checkedIngaSet,
+			Map<INodePresentation, SimulationResult> simulationResults) {
+		SimulationResult sr = simulationResults.getOrDefault(from,  new SimulationResult(0, 0));
+		if(simPositive) {
+			sr.plus  += 1;
+		} else {
+			sr.minus += 1;
+		}
+		simulationResults.put(from, sr);
+
+		ingaMap.get(from).stream()
+		.forEach(inga -> {
+			if(checkedIngaSet.contains(inga)) {
+				checkedIngaSet.remove(inga);
+				simulate(inga.target, ! (simPositive ^ inga.positive), checkedIngaSet, simulationResults);
+			}
+		});
 	}
 
 	// ノードを表示
@@ -423,12 +584,12 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				String.format(
 						"%s: %d (自己強化=%d, バランス=%d)",
-						node.p.getLabel(),
+						node.element.getLabel(),
 						node.numOfLoops(),
 						node.numOfPositiveLoops(),
 						node.numOfNegativeLoops()
 						),
-				new IPresentation[]{node.p}))
+				new IPresentation[]{node.element}))
 				);
 	}
 
@@ -438,12 +599,12 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				String.format(
 						"%s: %d (自己強化=%d, バランス=%d)",
-						link.inga.toString(),
+						link.element.toString(),
 						link.numOfLoops(),
 						link.numOfPositiveLoops(),
 						link.numOfNegativeLoops()
 						),
-				new IPresentation[]{link.inga.p}))
+				new IPresentation[]{link.element.p}))
 				);
 	}
 
@@ -465,14 +626,14 @@ public class UseCaseDiagramReader {
 	}
 
 	private static void getLoops(
-			IUseCase currentUC,
+			INodePresentation source,
 			Set<Inga> ingas,
 			Loop loop,
 			List<Loop> loops
 			){
 
 		ingas.stream()
-		.filter(inga -> inga.from == currentUC)
+		.filter(inga -> inga.source == source)
 		.forEach(inga -> {
 			logger.log(Level.FINE, () -> "##### inga " + inga.from + "->" + inga.to);
 
@@ -498,7 +659,7 @@ public class UseCaseDiagramReader {
 			else {
 				logger.log(Level.FINE, "not loop go next");
 				Loop nl = new Loop(loop, inga);
-				getLoops((IUseCase)inga.to, ingas, nl, loops);
+				getLoops(inga.target, ingas, nl, loops);
 			}
 
 		});

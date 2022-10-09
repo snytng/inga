@@ -19,7 +19,6 @@ import com.change_vision.jude.api.inf.exception.InvalidUsingException;
 import com.change_vision.jude.api.inf.model.IAssociation;
 import com.change_vision.jude.api.inf.model.IAttribute;
 import com.change_vision.jude.api.inf.model.IDependency;
-import com.change_vision.jude.api.inf.model.INamedElement;
 import com.change_vision.jude.api.inf.model.IUseCaseDiagram;
 import com.change_vision.jude.api.inf.presentation.ILinkPresentation;
 import com.change_vision.jude.api.inf.presentation.INodePresentation;
@@ -45,149 +44,6 @@ public class UseCaseDiagramReader {
 
 	public UseCaseDiagramReader(IUseCaseDiagram d) {
 		diagram = d;
-	}
-
-	/**
-	 * Inga - cause and effect
-	 */
-	static class Inga {
-		ILinkPresentation p;
-		INodePresentation source;
-		INodePresentation target;
-		INamedElement from;
-		INamedElement to;
-		private boolean positive;
-
-		public Inga(ILinkPresentation p, INodePresentation source, INodePresentation target, boolean positive){
-			this.p        = p;
-			this.source   = source;
-			this.target   = target;
-			this.from     = (INamedElement)this.source.getModel();
-			this.to       = (INamedElement)this.target.getModel();
-			this.positive = positive;
-		}
-
-		public boolean isPositive() {
-			return positive;
-		}
-
-		public boolean isNegative() {
-			return ! positive;
-		}
-
-		static int nPNString = 0;
-		public static void setPNStringIndex(int n) {
-			nPNString = n % PNStrings.length;
-		}
-
-		static final int POSITIVE_INDEX = 0;
-		static final int NEGATIVE_INDEX = 1;
-		static final String[][] PNStrings = new String[][] {
-			{"➚", "➘"},
-			{"S", "O"},
-			{"＋", "－"},
-			{"同", "逆"}
-			};
-
-		public String toString(){
-			if(positive){
-				return PNStrings[nPNString][POSITIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
-			} else {
-				return PNStrings[nPNString][NEGATIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
-			}
-		}
-
-		public String getArrowString() {
-			if(positive){
-				return "-(" + PNStrings[nPNString][POSITIVE_INDEX] + ")->";
-			} else {
-				return "-(" + PNStrings[nPNString][NEGATIVE_INDEX] + ")->";
-			}
-		}
-
-		public int hashCode(){
-			return p.hashCode();
-		}
-
-		public boolean equals(Object obj){
-			if (obj == null)
-				return false;
-
-			if (this.getClass() != obj.getClass())
-				return false;
-
-			Inga a = (Inga)obj;
-			return p.equals(a.p);
-		}
-	}
-
-	/**
-	 * Loop - the cyclic path of Ingas
-	 */
-	@SuppressWarnings("serial")
-	static class Loop extends ArrayList<Inga> implements List<Inga> {
-
-		public Loop() {
-			super();
-		}
-
-		public Loop(Loop cp) {
-			super();
-			cp.stream().forEach(this::add);
-		}
-
-		public Loop(Loop cp, Inga inga) {
-			super();
-			cp.stream().forEach(this::add);
-			this.add(inga);
-		}
-
-		private String getType() {
-			return isReinforcingLoop() ? "自己強化" : "バランス";
-		}
-
-		private List<Inga> getIngaLoop(IPresentation startPresentation) {
-			int index = 0;
-			for(int i = 0; i < this.size(); i++) {
-				if(get(i).source == startPresentation || get(i).p == startPresentation) {
-					index = i;
-					break;
-				}
-			}
-			return Stream.concat(this.stream().skip(index), this.stream().limit(index))
-					.collect(Collectors.toList());
-		}
-
-		public String getDescription(IPresentation startPresentation){
-			List<Inga> ingaLoop = getIngaLoop(startPresentation);
-			return getType() + ": " +
-					ingaLoop.stream()
-			.map(inga -> inga.from + " " + inga.getArrowString() + " ")
-			.collect(Collectors.joining())
-			+ ingaLoop.get(0).from;
-		}
-
-		public boolean isReinforcingLoop() {
-			// ネガティブループが偶数個含まれていれば自己強化ループ
-			return this.stream().filter(Inga::isNegative).count() % 2 == 0;
-		}
-
-		public boolean isBalancedLoop() {
-			return ! isReinforcingLoop();
-		}
-
-		public IPresentation[] getAllPresentations() {
-			return this.stream()
-			.map(inga -> new IPresentation[] {(IPresentation)inga.p, (IPresentation)inga.source, (IPresentation)inga.target})
-			.flatMap(l -> Arrays.asList(l).stream())
-			.toArray(IPresentation[]::new);
-		}
-
-		@Override
-		public String toString() {
-			return this.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->"));
-		}
-
 	}
 
 	static class LoopElement<T> {
@@ -580,7 +436,7 @@ public class UseCaseDiagramReader {
 		.forEach(inga -> {
 			if(checkedIngaSet.contains(inga)) {
 				checkedIngaSet.remove(inga);
-				simulate(inga.target, ! (simPositive ^ inga.positive), checkedIngaSet, simulationResults);
+				simulate(inga.target, ! (simPositive ^ inga.isPositive()), checkedIngaSet, simulationResults);
 			}
 		});
 	}

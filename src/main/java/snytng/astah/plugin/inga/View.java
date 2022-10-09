@@ -227,12 +227,12 @@ ListSelectionListener
 			deleteButton.setEnabled(false);
 		});
 
-		String[] comboPNStrings = Stream.of(UseCaseDiagramReader.Inga.PNStrings)
+		String[] comboPNStrings = Stream.of(Inga.PNStrings)
 				.map(pn -> String.join("", pn))
 				.toArray(String[]::new);
 		selectPNStrings = new JComboBox<>(comboPNStrings);
 		selectPNStrings.addActionListener(e -> {
-			UseCaseDiagramReader.Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
+			Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
 			updateDiagramView();
 		});
 
@@ -342,7 +342,7 @@ ListSelectionListener
 
 
 	@SuppressWarnings("unchecked")
-	private void createIngaLink(IPresentation[] links) {
+	private void createIngaLink(IPresentation[] presentations) {
 		if(ingaDiagram == null) {
 			return;
 		}
@@ -362,10 +362,29 @@ ListSelectionListener
 			}
 			ingaCreatedLinkPresentationList = new ArrayList<>();
 
-			// リンクが存在していたら作成
-			if (links != null) {
-				// リンクを作成
-				List<ILinkPresentation> lps = Stream.of(links)
+			// Presentationが存在していたら
+			if (presentations != null) {
+				// INodePrsentationはingaDiagramにある同じラベルのノードを追加する
+				IPresentation[] ingaDiagramPresentations = ingaDiagram.getPresentations();
+				Stream.of(presentations)
+				.filter(INodePresentation.class::isInstance)
+				.map(INodePresentation.class::cast)
+				.map(node -> {
+					INodePresentation ret = null;
+					for(IPresentation p : ingaDiagramPresentations) {
+						if(p instanceof INodePresentation) {
+							if(p.getLabel() == node.getLabel()) {
+								ret = (INodePresentation)p;
+								break;
+							}
+						}
+					}
+					return ret;
+				})
+				.forEach(node -> ingaUsedNodePresentationList.add(node));
+
+				// ILinkPresentationはリンクを追加する
+				List<ILinkPresentation> lps = Stream.of(presentations)
 						.filter(ILinkPresentation.class::isInstance)
 						.map(ILinkPresentation.class::cast)
 						.collect(Collectors.toList());
@@ -539,6 +558,14 @@ ListSelectionListener
 					diagramViewManager.clearAllViewProperties(currentDiagram);
 
 					// 選択要素がある場合
+					String m = messagePresentations.get(index).message;
+					Color color = Color.MAGENTA;
+					if(m.startsWith(Loop.REINFORCING_NAME)) {
+						color = Color.GREEN;
+					} else if(m.startsWith(Loop.BALANCING_NAME)) {
+						color = Color.RED;
+					}
+
 					IPresentation[] ps = messagePresentations.get(index).presentations;
 					if(ps != null) {
 						// 選択状態では要素選択時の更新処理を止める
@@ -551,11 +578,11 @@ ListSelectionListener
 							diagramViewManager.setViewProperty(
 									p,
 									IDiagramViewManager.LINE_COLOR,
-									Color.MAGENTA);
+									color);
 							diagramViewManager.setViewProperty(
 									p,
 									IDiagramViewManager.BORDER_COLOR,
-									Color.MAGENTA);
+									color);
 						}
 						// 選択状態を解除する
 						modeListSelecting = false;
@@ -568,6 +595,14 @@ ListSelectionListener
 		}
 		// 因果ループ解析結果表示中
 		else {
+			String m = messagePresentations.get(index).message;
+			Color color = Color.MAGENTA;
+			if(m.startsWith(Loop.REINFORCING_NAME)) {
+				color = Color.GREEN;
+			} else if(m.startsWith(Loop.BALANCING_NAME)) {
+				color = Color.RED;
+			}
+
 			IPresentation[] ps = messagePresentations.get(index).presentations;
 			createIngaLink(ps);
 
@@ -581,13 +616,13 @@ ListSelectionListener
 					diagramViewManager.setViewProperty(
 							p,
 							IDiagramViewManager.LINE_COLOR,
-							Color.MAGENTA);
+							color);
 				}
 				for(IPresentation p: ingaUsedNodePresentationList) {
 					diagramViewManager.setViewProperty(
 							p,
 							IDiagramViewManager.BORDER_COLOR,
-							Color.MAGENTA);
+							color);
 				}
 			} catch (InvalidUsingException e1) {
 				e1.printStackTrace();

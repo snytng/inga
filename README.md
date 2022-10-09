@@ -20,18 +20,14 @@ astah*のユースケース図で作成した因果ループのループを抽�
 ### 解析
 - ユースケース図で因果ループを作成します。（ユースケースをノードとして、＋を関連線（矢印付き実線）、－を依存線（矢印付き点線）として追加します）
 - ingaプラグインを開きます。（プラグインタブを選択します）
-- 因果ループの解析結果が表示されます。
-  <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20231940.png" alt="解析結果表示" width="50%">
+- 因果ループの解析結果が表示されます。<img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20231940.png" alt="解析結果表示" width="50%">
 
 ### 表示
 - 解析結果リストの行を選択すると関連する図の要素が選択されます。
 - 因果ループの解析結果の行を押すと、因果のリンクや、ループを色を付けて強調表示します。
-  - 自己強化ループは緑色で表示します。
-  <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232015.png" alt="解析結果表示" width="50%">
-  - バランスループは赤色で表示します。
-  <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232039.png" alt="解析結果表示" width="50%">
-  - 選択したリンクやノードはマゼンタで表示します。
-  <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232106.png" alt="解析結果表示" width="50%">
+  - 自己強化ループは緑色で表示します。<img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232015.png" alt="解析結果表示" width="50%">
+  - バランスループは赤色で表示します。<img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232039.png" alt="解析結果表示" width="50%">
+  - 選択したリンクやノードはマゼンタで表示します。<img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232106.png" alt="解析結果表示" width="50%">
 - 図の要素を選択すると関連する解析結果だけを表示します。
 
 ### 設定
@@ -45,6 +41,9 @@ astah*のユースケース図で作成した因果ループのループを抽�
 このastah* pluginを利用したことによる、astah*ファイルの破損により生じた生じたあらゆる損害等について一切責任を負いません。
 
 ## 変更履歴
+- V0.3.2
+    - 編集しているユースケース図で因果ループを強調表示する機能を追加
+    - 追加のユースケース図の作成して因果ループを表示する機能を削除
 - V0.3
     - ユースケース図での因果の定義を実線（関連）と破線（依存）以外にも選択できる機能を追加（SO,+-,同逆）
     - 増減記号を選択できる機能を追加

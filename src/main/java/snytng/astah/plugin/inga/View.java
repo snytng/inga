@@ -1,6 +1,7 @@
 package snytng.astah.plugin.inga;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.util.ArrayList;
@@ -336,10 +337,6 @@ ListSelectionListener
 
 	@SuppressWarnings("unchecked")
 	private void createIngaLink(IPresentation[] links) {
-		if (links == null) {
-			return;
-		}
-
 		if(ingaDiagram == null) {
 			return;
 		}
@@ -350,56 +347,56 @@ ListSelectionListener
 			// ユースケース図を編集
 			usecaseDiagramEditor.setDiagram(ingaDiagram);
 
-
 			// 作成したリンクを削除
 			for(IPresentation p : ingaCreatedLinkPresentationList) {
 				usecaseDiagramEditor.deletePresentation(p);
 			}
-
-			// リンクを作成
 			ingaCreatedLinkPresentationList = new ArrayList<>();
-			List<ILinkPresentation> lps = Stream.of(links)
-					.filter(ILinkPresentation.class::isInstance)
-					.map(ILinkPresentation.class::cast)
-					.collect(Collectors.toList());
 
-			for(ILinkPresentation lp : lps) {
-				if(! linkPresentationTypes.contains(lp.getType())) {
-					logger.log(Level.FINE, () -> "lp type=" + lp.getType());
-					continue;
-				}
+			// リンクが存在していたら作成
+			if (links != null) {
+				// リンクを作成
+				List<ILinkPresentation> lps = Stream.of(links)
+						.filter(ILinkPresentation.class::isInstance)
+						.map(ILinkPresentation.class::cast)
+						.collect(Collectors.toList());
 
-				Optional<INodePresentation> source = ingaCreatedNodePresentationList.stream()
-						.filter(x -> x.getLocation().equals(lp.getSource().getLocation()))
-						.findFirst();
-				Optional<INodePresentation> target = ingaCreatedNodePresentationList.stream()
-						.filter(x -> x.getLocation().equals(lp.getTarget().getLocation()))
-						.findFirst();
-				if(source.isPresent() && target.isPresent()) {
-					ILinkPresentation nlp = usecaseDiagramEditor.createLinkPresentation(lp.getModel(), source.get(), target.get());
-					nlp.setAllPoints(lp.getAllPoints());
-					nlp.setLabel(lp.getLabel());
-					nlp.getProperties().keySet().stream()
-					.filter(k -> lp.getProperty((String)k) != null)
-					.forEach(k -> {
-						try {
-							nlp.setProperty((String)k, lp.getProperty((String)k));
-						} catch (InvalidEditingException e) {
-							logger.log(Level.FINEST, e.getMessage(), e);
-						}
-					});
+				for(ILinkPresentation lp : lps) {
+					if(! linkPresentationTypes.contains(lp.getType())) {
+						logger.log(Level.FINE, () -> "lp type=" + lp.getType());
+						continue;
+					}
 
-					ingaCreatedLinkPresentationList.add(nlp);
+					Optional<INodePresentation> source = ingaCreatedNodePresentationList.stream()
+							.filter(x -> x.getLocation().equals(lp.getSource().getLocation()))
+							.findFirst();
+					Optional<INodePresentation> target = ingaCreatedNodePresentationList.stream()
+							.filter(x -> x.getLocation().equals(lp.getTarget().getLocation()))
+							.findFirst();
+					if(source.isPresent() && target.isPresent()) {
+						ILinkPresentation nlp = usecaseDiagramEditor.createLinkPresentation(lp.getModel(), source.get(), target.get());
+						nlp.setAllPoints(lp.getAllPoints());
+						nlp.setLabel(lp.getLabel());
+						nlp.getProperties().keySet().stream()
+						.filter(k -> lp.getProperty((String)k) != null)
+						.forEach(k -> {
+							try {
+								nlp.setProperty((String)k, lp.getProperty((String)k));
+							} catch (InvalidEditingException e) {
+								logger.log(Level.FINEST, e.getMessage(), e);
+							}
+						});
+
+						ingaCreatedLinkPresentationList.add(nlp);
+					}
 				}
 			}
-
 			TransactionManager.endTransaction();
 		}catch(Exception e){
 			TransactionManager.abortTransaction();
 			logger.log(Level.WARNING, e.getMessage(), e);
 		}
 	}
-
 
 
 	/**
@@ -525,8 +522,22 @@ ListSelectionListener
 		if (ingaDiagram == null) {
 			if(messagePresentations != null &&
 					messagePresentations.get(index).presentations != null) {
+				// 選択状態では要素選択時の更新処理を止める
 				modeListSelecting = true;
 				diagramViewManager.select(messagePresentations.get(index).presentations);
+				// モデルに一時的に色を付ける
+				try {
+					diagramViewManager.clearAllViewProperties(diagramViewManager.getCurrentDiagram());
+					for(IPresentation p: messagePresentations.get(index).presentations) {
+						diagramViewManager.setViewProperty(
+								p,
+								IDiagramViewManager.LINE_COLOR,
+								Color.MAGENTA);
+					}
+				} catch (InvalidUsingException e1) {
+					e1.printStackTrace();
+				}
+				// 選択状態を解除する
 				modeListSelecting = false;
 			}
 		}
@@ -536,6 +547,18 @@ ListSelectionListener
 
 			diagramViewManager.open(ingaDiagram);
 			diagramViewManager.unselectAll();
+			// モデルに一時的に色を付ける
+			try {
+				diagramViewManager.clearAllViewProperties(ingaDiagram);
+				for(IPresentation p: ingaCreatedLinkPresentationList) {
+					diagramViewManager.setViewProperty(
+							p,
+							IDiagramViewManager.LINE_COLOR,
+							Color.MAGENTA);
+				}
+			} catch (InvalidUsingException e1) {
+				e1.printStackTrace();
+			}
 		}
 	}
 

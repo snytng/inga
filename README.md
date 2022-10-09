@@ -25,12 +25,12 @@ astah*のユースケース図で作成した因果ループのループを抽�
 
 ### 表示
 - 解析結果リストの行を選択すると関連する図の要素が選択されます。
-- 因果ループの解析結果の行を押すと、因果のリンクや、ループを表示しします。
--- 自己強化ループは緑色で表示します。
+- 因果ループの解析結果の行を押すと、因果のリンクや、ループを色を付けて強調表示します。
+  - 自己強化ループは緑色で表示します。
   <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232015.png" alt="解析結果表示" width="50%">
--- バランスループは赤色で表示します。
+  - バランスループは赤色で表示します。
   <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232039.png" alt="解析結果表示" width="50%">
--- 選択したリンクやノードはマゼンタで表示します。
+  - 選択したリンクやノードはマゼンタで表示します。
   <img src="https://raw.githubusercontent.com/snytng/inga/master/images/2022-10-09%20232106.png" alt="解析結果表示" width="50%">
 - 図の要素を選択すると関連する解析結果だけを表示します。
 

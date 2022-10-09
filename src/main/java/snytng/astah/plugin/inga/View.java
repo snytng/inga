@@ -66,7 +66,7 @@ ListSelectionListener
 	/**
 	 * プロパティファイルの配置場所
 	 */
-	private static final String VIEW_PROPERTIES = "snytng.astah.plugin.inga.view";
+	private static final String VIEW_PROPERTIES = View.class.getPackage().getName() + ".view";
 
 	/**
 	 * リソースバンドル

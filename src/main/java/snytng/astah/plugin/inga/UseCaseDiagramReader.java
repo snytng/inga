@@ -176,6 +176,13 @@ public class UseCaseDiagramReader {
 			return ! isReinforcingLoop();
 		}
 
+		public IPresentation[] getAllPresentations() {
+			return this.stream()
+			.map(inga -> new IPresentation[] {(IPresentation)inga.p, (IPresentation)inga.source, (IPresentation)inga.target})
+			.flatMap(l -> Arrays.asList(l).stream())
+			.toArray(IPresentation[]::new);
+		}
+
 		@Override
 		public String toString() {
 			return this.stream().map(cp -> cp.from.getName()).collect(Collectors.joining("->"));
@@ -223,7 +230,7 @@ public class UseCaseDiagramReader {
 	}
 
 	static String[] IngaSuppliers = new String[] {
-		"Default",
+		"Default（実線、破線）",
 		"SO",
 		"＋－",
 		"同逆"
@@ -618,9 +625,7 @@ public class UseCaseDiagramReader {
 		.forEach(loop ->
 		mps.add(new MessagePresentation(
 				loop.getDescription(startPresentation),
-				loop.stream()
-				.map(inga -> (IPresentation)inga.p)
-				.toArray(IPresentation[]::new))
+				loop.getAllPresentations())
 				)
 				);
 	}

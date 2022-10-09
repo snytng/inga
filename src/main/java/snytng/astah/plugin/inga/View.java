@@ -157,7 +157,7 @@ ListSelectionListener
 	JComboBox<String> selectPNSupplier = new JComboBox<>();
 
 	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
-	JRadioButton showPNOnlyButton = new JRadioButton("＋－要素のみ", false);
+	JRadioButton showPNOnlyButton = new JRadioButton("自己強化・バランスループ要素のみ", false);
 
 	private final String INGA_DIAGRAM_PREFIX = "inga";
 	transient IUseCaseDiagram targetDiagram = null;
@@ -165,13 +165,18 @@ ListSelectionListener
 	transient List<IPresentation> ingaPresentationList = new ArrayList<>();
 	transient List<INodePresentation> ingaCreatedNodePresentationList = new ArrayList<>();
 	transient List<ILinkPresentation> ingaCreatedLinkPresentationList = new ArrayList<>();
+	transient List<INodePresentation> ingaUsedNodePresentationList = new ArrayList<>();
 
 	private Container createControllerPane() {
 
-		// ボタンの初期状態
+
+		// ボタンの説明追加
+		showLoopOnlyButton.setToolTipText("ループに含まれる要素のみを表示");
+		showPNOnlyButton.setToolTipText("自己強化・バランスの両方のループに含まれる要素のみを表示");
+
+		// 因果ループ追加・削除ボタンの初期状態
 		addButton.setEnabled(true);
 		deleteButton.setEnabled(false);
-
 		// 因果ループ追加ボタン
 		addButton.addActionListener(e -> {
 			try {
@@ -213,6 +218,7 @@ ListSelectionListener
 			ingaPresentationList = new ArrayList<>();
 			ingaCreatedNodePresentationList = new ArrayList<>();
 			ingaCreatedLinkPresentationList = new ArrayList<>();
+			ingaUsedNodePresentationList    = new ArrayList<>();
 
 			diagramLabel.setText("");
 			ingaDiagramLabel.setText("");
@@ -347,6 +353,9 @@ ListSelectionListener
 			// ユースケース図を編集
 			usecaseDiagramEditor.setDiagram(ingaDiagram);
 
+			// リンクにつながっているノードを消去
+			ingaUsedNodePresentationList    = new ArrayList<>();
+
 			// 作成したリンクを削除
 			for(IPresentation p : ingaCreatedLinkPresentationList) {
 				usecaseDiagramEditor.deletePresentation(p);
@@ -388,6 +397,9 @@ ListSelectionListener
 						});
 
 						ingaCreatedLinkPresentationList.add(nlp);
+						// リンクにつながっているノードを追加
+						ingaUsedNodePresentationList.add(source.get());
+						ingaUsedNodePresentationList.add(target.get());
 					}
 				}
 			}
@@ -513,47 +525,68 @@ ListSelectionListener
 		int index = textArea.getSelectedIndex();
 		logger.log(Level.FINE, () -> "textArea selected index=" + index);
 
-		if(index < 0){ // 選択項目がない場合（indexは-1）は処理しない
+		if(index < 0){ // 選択項目がない場合（indexは-1になる）は処理しない
 			return;
 		}
 
 		// 選択項目のPresentationを因果として表示する
 		// 因果ループ作成中
 		if (ingaDiagram == null) {
-			if(messagePresentations != null &&
-					messagePresentations.get(index).presentations != null) {
-				// 選択状態では要素選択時の更新処理を止める
-				modeListSelecting = true;
-				diagramViewManager.select(messagePresentations.get(index).presentations);
-				// モデルに一時的に色を付ける
+			if(messagePresentations != null) {
 				try {
-					diagramViewManager.clearAllViewProperties(diagramViewManager.getCurrentDiagram());
-					for(IPresentation p: messagePresentations.get(index).presentations) {
-						diagramViewManager.setViewProperty(
-								p,
-								IDiagramViewManager.LINE_COLOR,
-								Color.MAGENTA);
+					// モデルの一時的なビューをクリア
+					IDiagram currentDiagram = diagramViewManager.getCurrentDiagram();
+					diagramViewManager.clearAllViewProperties(currentDiagram);
+
+					// 選択要素がある場合
+					IPresentation[] ps = messagePresentations.get(index).presentations;
+					if(ps != null) {
+						// 選択状態では要素選択時の更新処理を止める
+						modeListSelecting = true;
+
+						// 選択したインがループの要素を選択する
+						diagramViewManager.select(ps);
+						// モデルに一時的に色を付ける
+						for(IPresentation p: ps) {
+							diagramViewManager.setViewProperty(
+									p,
+									IDiagramViewManager.LINE_COLOR,
+									Color.MAGENTA);
+							diagramViewManager.setViewProperty(
+									p,
+									IDiagramViewManager.BORDER_COLOR,
+									Color.MAGENTA);
+						}
+						// 選択状態を解除する
+						modeListSelecting = false;
 					}
 				} catch (InvalidUsingException e1) {
 					e1.printStackTrace();
 				}
-				// 選択状態を解除する
-				modeListSelecting = false;
+
 			}
 		}
 		// 因果ループ解析結果表示中
 		else {
-			createIngaLink(messagePresentations.get(index).presentations);
+			IPresentation[] ps = messagePresentations.get(index).presentations;
+			createIngaLink(ps);
 
 			diagramViewManager.open(ingaDiagram);
 			diagramViewManager.unselectAll();
-			// モデルに一時的に色を付ける
 			try {
+				// モデルの一時的なビューをクリア
 				diagramViewManager.clearAllViewProperties(ingaDiagram);
+				// モデルに一時的に色を付ける
 				for(IPresentation p: ingaCreatedLinkPresentationList) {
 					diagramViewManager.setViewProperty(
 							p,
 							IDiagramViewManager.LINE_COLOR,
+							Color.MAGENTA);
+				}
+				for(IPresentation p: ingaUsedNodePresentationList) {
+					diagramViewManager.setViewProperty(
+							p,
+							IDiagramViewManager.BORDER_COLOR,
 							Color.MAGENTA);
 				}
 			} catch (InvalidUsingException e1) {

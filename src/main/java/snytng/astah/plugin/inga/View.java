@@ -1,21 +1,19 @@
 package snytng.astah.plugin.inga;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -26,9 +24,6 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import com.change_vision.jude.api.inf.AstahAPI;
-import com.change_vision.jude.api.inf.editor.TransactionManager;
-import com.change_vision.jude.api.inf.editor.UseCaseDiagramEditor;
-import com.change_vision.jude.api.inf.exception.InvalidEditingException;
 import com.change_vision.jude.api.inf.exception.InvalidUsingException;
 import com.change_vision.jude.api.inf.model.IDiagram;
 import com.change_vision.jude.api.inf.model.IUseCaseDiagram;
@@ -71,7 +66,7 @@ ListSelectionListener
 	/**
 	 * プロパティファイルの配置場所
 	 */
-	private static final String VIEW_PROPERTIES = "snytng.astah.plugin.inga.view";
+	private static final String VIEW_PROPERTIES = View.class.getPackage().getName() + ".view";
 
 	/**
 	 * リソースバンドル
@@ -85,14 +80,12 @@ ListSelectionListener
 	private transient ProjectAccessor projectAccessor = null;
 	private transient IDiagramViewManager diagramViewManager = null;
 	private transient IProjectViewManager projectViewManager = null;
-	private transient UseCaseDiagramEditor usecaseDiagramEditor = null;
 
 	public View() {
 		try {
 			projectAccessor = AstahAPI.getAstahAPI().getProjectAccessor();
 			diagramViewManager = projectAccessor.getViewManager().getDiagramViewManager();
 			projectViewManager = projectAccessor.getViewManager().getProjectViewManager();
-			usecaseDiagramEditor = projectAccessor.getDiagramEditorFactory().getUseCaseDiagramEditor();
 		} catch (ClassNotFoundException | InvalidUsingException e){
 			logger.log(Level.WARNING, e.getMessage());
 		}
@@ -143,12 +136,6 @@ ListSelectionListener
 		return scrollPane;
 	}
 
-	JLabel  controllerLabel = new JLabel("ループ描画");
-	JLabel  diagramLabel = new JLabel("");
-	JLabel  ingaDiagramLabel = new JLabel("");
-	JButton addButton    = new JButton(VIEW_BUNDLE.getString("Button.Add"));
-	JButton deleteButton = new JButton(VIEW_BUNDLE.getString("Button.Del"));
-
 	JLabel            selectPNStringsLabel = new JLabel("記号");
 	JComboBox<String> selectPNStrings = new JComboBox<>();
 
@@ -156,76 +143,19 @@ ListSelectionListener
 	JComboBox<String> selectPNSupplier = new JComboBox<>();
 
 	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
-	JRadioButton showPNOnlyButton = new JRadioButton("＋－要素のみ", false);
-
-	private final String INGA_DIAGRAM_PREFIX = "inga";
-	transient IUseCaseDiagram targetDiagram = null;
-	transient IUseCaseDiagram ingaDiagram = null;
-	transient List<IPresentation> ingaPresentationList = new ArrayList<>();
-	transient List<INodePresentation> ingaCreatedNodePresentationList = new ArrayList<>();
-	transient List<ILinkPresentation> ingaCreatedLinkPresentationList = new ArrayList<>();
+	JRadioButton showPNOnlyButton = new JRadioButton("自己強化・バランスループ要素のみ", false);
 
 	private Container createControllerPane() {
+		// ボタンの説明追加
+		showLoopOnlyButton.setToolTipText("ループに含まれる要素のみを表示");
+		showPNOnlyButton.setToolTipText("自己強化・バランスの両方のループに含まれる要素のみを表示");
 
-		// ボタンの初期状態
-		addButton.setEnabled(true);
-		deleteButton.setEnabled(false);
-
-		// 因果ループ追加ボタン
-		addButton.addActionListener(e -> {
-			try {
-				IDiagram currentDiagram = diagramViewManager.getCurrentDiagram();
-				if(currentDiagram instanceof IUseCaseDiagram) {
-					ingaPresentationList = Arrays.asList(currentDiagram.getPresentations());
-
-					long count = Arrays.stream(projectAccessor.getProject().getDiagrams())
-							.map(IDiagram::getName)
-							.filter(n -> n.startsWith(INGA_DIAGRAM_PREFIX))
-							.count();
-					String diagramName = INGA_DIAGRAM_PREFIX + Long.toString(count);
-
-					TransactionManager.beginTransaction();
-					ingaDiagram = usecaseDiagramEditor.createUseCaseDiagram(projectAccessor.getProject(), diagramName);
-					TransactionManager.endTransaction();
-
-					diagramLabel.setText(currentDiagram.getName());
-					ingaDiagramLabel.setText(ingaDiagram.getName());
-				}
-
-			}catch(Exception ex){
-				TransactionManager.abortTransaction();
-				ex.printStackTrace();
-			}
-
-			createIngaNode();
-			diagramViewManager.open(ingaDiagram);
-			diagramViewManager.unselectAll();
-
-			addButton.setEnabled(false);
-			deleteButton.setEnabled(true);
-		});
-
-		deleteButton.addActionListener(e -> {
-			targetDiagram = null;
-
-			ingaDiagram = null;
-			ingaPresentationList = new ArrayList<>();
-			ingaCreatedNodePresentationList = new ArrayList<>();
-			ingaCreatedLinkPresentationList = new ArrayList<>();
-
-			diagramLabel.setText("");
-			ingaDiagramLabel.setText("");
-
-			addButton.setEnabled(true);
-			deleteButton.setEnabled(false);
-		});
-
-		String[] comboPNStrings = Stream.of(UseCaseDiagramReader.Inga.PNStrings)
+		String[] comboPNStrings = Stream.of(Inga.PNStrings)
 				.map(pn -> String.join("", pn))
 				.toArray(String[]::new);
 		selectPNStrings = new JComboBox<>(comboPNStrings);
 		selectPNStrings.addActionListener(e -> {
-			UseCaseDiagramReader.Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
+			Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
 			updateDiagramView();
 		});
 
@@ -252,12 +182,6 @@ ListSelectionListener
 		panel.add(centerPanel, BorderLayout.CENTER);
 		panel.add(eastPanel, BorderLayout.EAST);
 
-		centerPanel.add(controllerLabel);
-		centerPanel.add(diagramLabel);
-		centerPanel.add(addButton);
-		centerPanel.add(deleteButton);
-		centerPanel.add(ingaDiagramLabel);
-
 		centerPanel.add(selectPNStringsLabel);
 		centerPanel.add(selectPNStrings);
 
@@ -279,128 +203,6 @@ ListSelectionListener
 		linkPresentationTypes.add("Dependency");
 		linkPresentationTypes.add("Usage");
 	}
-
-	@SuppressWarnings("unchecked")
-	private void createIngaNode() {
-		if(ingaDiagram == null) {
-			return;
-		}
-
-		try {
-			TransactionManager.beginTransaction();
-
-			// ユースケース図を編集
-			usecaseDiagramEditor.setDiagram(ingaDiagram);
-
-			// 作成したノードを削除
-			for(IPresentation p : ingaCreatedNodePresentationList) {
-				usecaseDiagramEditor.deletePresentation(p);
-			}
-
-			// ノードを作成
-			ingaCreatedNodePresentationList = new ArrayList<>();
-			List<INodePresentation> nps = ingaPresentationList.stream()
-					.filter(INodePresentation.class::isInstance)
-					.map(INodePresentation.class::cast)
-					.collect(Collectors.toList());
-
-			for(INodePresentation np : nps) {
-				if(np.getType().equals("UseCase") || np.getType().equals("Class")) {
-					INodePresentation nnp = usecaseDiagramEditor.createNodePresentation(np.getModel(), np.getLocation());
-					ingaCreatedNodePresentationList.add(nnp);
-
-					nnp.setHeight(np.getHeight());
-					nnp.setWidth(np.getWidth());
-					nnp.getProperties().keySet().stream()
-					.filter(k -> np.getProperty((String)k) != null)
-					.forEach(k -> {
-						try {
-							nnp.setProperty((String)k, np.getProperty((String)k));
-						} catch (InvalidEditingException e) {
-							logger.log(Level.FINEST, e.getMessage(), e);
-						}
-					});
-
-				} else {
-					logger.log(Level.FINE, () -> "np type=" + np.getType());
-				}
-			}
-
-			TransactionManager.endTransaction();
-		}catch(Exception e){
-			TransactionManager.abortTransaction();
-			logger.log(Level.WARNING, e.getMessage(), e);
-		}
-	}
-
-
-	@SuppressWarnings("unchecked")
-	private void createIngaLink(IPresentation[] links) {
-		if (links == null) {
-			return;
-		}
-
-		if(ingaDiagram == null) {
-			return;
-		}
-
-		try {
-			TransactionManager.beginTransaction();
-
-			// ユースケース図を編集
-			usecaseDiagramEditor.setDiagram(ingaDiagram);
-
-
-			// 作成したリンクを削除
-			for(IPresentation p : ingaCreatedLinkPresentationList) {
-				usecaseDiagramEditor.deletePresentation(p);
-			}
-
-			// リンクを作成
-			ingaCreatedLinkPresentationList = new ArrayList<>();
-			List<ILinkPresentation> lps = Stream.of(links)
-					.filter(ILinkPresentation.class::isInstance)
-					.map(ILinkPresentation.class::cast)
-					.collect(Collectors.toList());
-
-			for(ILinkPresentation lp : lps) {
-				if(! linkPresentationTypes.contains(lp.getType())) {
-					logger.log(Level.FINE, () -> "lp type=" + lp.getType());
-					continue;
-				}
-
-				Optional<INodePresentation> source = ingaCreatedNodePresentationList.stream()
-						.filter(x -> x.getLocation().equals(lp.getSource().getLocation()))
-						.findFirst();
-				Optional<INodePresentation> target = ingaCreatedNodePresentationList.stream()
-						.filter(x -> x.getLocation().equals(lp.getTarget().getLocation()))
-						.findFirst();
-				if(source.isPresent() && target.isPresent()) {
-					ILinkPresentation nlp = usecaseDiagramEditor.createLinkPresentation(lp.getModel(), source.get(), target.get());
-					nlp.setAllPoints(lp.getAllPoints());
-					nlp.setLabel(lp.getLabel());
-					nlp.getProperties().keySet().stream()
-					.filter(k -> lp.getProperty((String)k) != null)
-					.forEach(k -> {
-						try {
-							nlp.setProperty((String)k, lp.getProperty((String)k));
-						} catch (InvalidEditingException e) {
-							logger.log(Level.FINEST, e.getMessage(), e);
-						}
-					});
-
-					ingaCreatedLinkPresentationList.add(nlp);
-				}
-			}
-
-			TransactionManager.endTransaction();
-		}catch(Exception e){
-			TransactionManager.abortTransaction();
-			logger.log(Level.WARNING, e.getMessage(), e);
-		}
-	}
-
-
 
 	/**
 	 * 図の選択が変更されたら表示を更新する
@@ -427,16 +229,12 @@ ListSelectionListener
 	 * 表示を更新する
 	 */
 	private void updateDiagramView(){
-
-		// 因果分析中はtextArea表示更新せずにフォーカスする
-		if(ingaDiagram != null){
-			textArea.requestFocusInWindow();
-			return;
-		}
-
 		try {
 			// 今選択している図のタイプを取得する
 			IDiagram diagram = diagramViewManager.getCurrentDiagram();
+
+			// モデルの一時的なビューをクリア
+			diagramViewManager.clearAllViewProperties(diagram);
 
 			// 今選択しているIElemnetを取得する
 			List<IPresentation> selectedPresentations = Arrays.asList(diagramViewManager.getSelectedPresentations());
@@ -446,7 +244,6 @@ ListSelectionListener
 
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
-				targetDiagram = (IUseCaseDiagram)diagram;
 				messagePresentations = new UseCaseDiagramReader((IUseCaseDiagram)diagram)
 						.getMessagePresentation(
 						selectedPresentations,
@@ -516,26 +313,79 @@ ListSelectionListener
 		int index = textArea.getSelectedIndex();
 		logger.log(Level.FINE, () -> "textArea selected index=" + index);
 
-		if(index < 0){ // 選択項目がない場合（indexは-1）は処理しない
+		if(index < 0){ // 選択項目がない場合（indexは-1になる）は処理しない
 			return;
 		}
 
 		// 選択項目のPresentationを因果として表示する
-		// 因果ループ作成中
-		if (ingaDiagram == null) {
-			if(messagePresentations != null &&
-					messagePresentations.get(index).presentations != null) {
-				modeListSelecting = true;
-				diagramViewManager.select(messagePresentations.get(index).presentations);
-				modeListSelecting = false;
-			}
-		}
-		// 因果ループ解析結果表示中
-		else {
-			createIngaLink(messagePresentations.get(index).presentations);
+		if(messagePresentations != null) {
+			try {
+				// モデルの一時的なビューをクリア
+				IDiagram currentDiagram = diagramViewManager.getCurrentDiagram();
+				diagramViewManager.clearAllViewProperties(currentDiagram);
 
-			diagramViewManager.open(ingaDiagram);
-			diagramViewManager.unselectAll();
+				// 選択要素がある場合
+				IPresentation[] ps = messagePresentations.get(index).presentations;
+				if(ps != null) {
+					// メッセージの内容によって一時的に変更する色を設定する
+					String m = messagePresentations.get(index).message;
+					Color color = Color.MAGENTA;
+					if(m.startsWith(Loop.REINFORCING_NAME)) {
+						color = Color.GREEN;
+					} else if(m.startsWith(Loop.BALANCING_NAME)) {
+						color = Color.RED;
+					}
+
+					// 選択状態では要素選択時の更新処理を止める
+					modeListSelecting = true;
+
+					// 選択した因果ループの要素を選択する
+					//diagramViewManager.select(ps);
+
+					// モデルに含まれるILinkPresentationを一時的に消す（グレーにする）
+					Color baseColor = Color.LIGHT_GRAY;
+					for(IPresentation p: currentDiagram.getPresentations()) {
+						if(p instanceof ILinkPresentation) {
+							diagramViewManager.setViewProperty(
+									p,
+									IDiagramViewManager.LINE_COLOR,
+									baseColor);
+						}
+					}
+
+					// ループの要素に一時的に色を付ける
+					for(IPresentation p: ps) {
+						if(p instanceof ILinkPresentation) {
+							diagramViewManager.setViewProperty(
+									p,
+									IDiagramViewManager.LINE_COLOR,
+									color);
+							IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
+							diagramViewManager.setViewProperty(
+									nps,
+									IDiagramViewManager.BORDER_COLOR,
+									color);
+							IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
+							diagramViewManager.setViewProperty(
+									npt,
+									IDiagramViewManager.BORDER_COLOR,
+									color);
+						}
+						if(p instanceof INodePresentation) {
+							diagramViewManager.setViewProperty(
+									p,
+									IDiagramViewManager.BORDER_COLOR,
+									color);
+						}
+					}
+
+					// 選択状態を解除する
+					modeListSelecting = false;
+				}
+			} catch (InvalidUsingException e1) {
+				e1.printStackTrace();
+			}
+
 		}
 	}
 

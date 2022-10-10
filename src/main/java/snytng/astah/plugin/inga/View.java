@@ -136,6 +136,8 @@ ListSelectionListener
 		return scrollPane;
 	}
 
+    JRadioButton colorizeButton = new JRadioButton("色づけ", false);
+
 	JLabel            selectPNStringsLabel = new JLabel("記号");
 	JComboBox<String> selectPNStrings = new JComboBox<>();
 
@@ -149,6 +151,10 @@ ListSelectionListener
 		// ボタンの説明追加
 		showLoopOnlyButton.setToolTipText("ループに含まれる要素のみを表示");
 		showPNOnlyButton.setToolTipText("自己強化・バランスの両方のループに含まれる要素のみを表示");
+
+		colorizeButton.addChangeListener(e -> {
+		    updateDiagramView();
+		});
 
 		String[] comboPNStrings = Stream.of(Inga.PNStrings)
 				.map(pn -> String.join("", pn))
@@ -181,6 +187,8 @@ ListSelectionListener
 		JPanel eastPanel = new JPanel();
 		panel.add(centerPanel, BorderLayout.CENTER);
 		panel.add(eastPanel, BorderLayout.EAST);
+
+		centerPanel.add(colorizeButton);
 
 		centerPanel.add(selectPNStringsLabel);
 		centerPanel.add(selectPNStrings);
@@ -230,11 +238,16 @@ ListSelectionListener
 	 */
 	private void updateDiagramView(){
 		try {
-			// 今選択している図のタイプを取得する
+			// 今選択している図を取得する
 			IDiagram diagram = diagramViewManager.getCurrentDiagram();
 
+			// 図がなければ終了
+			if(diagram == null) {
+			    return;
+			}
+
 			// モデルの一時的なビューをクリア
-			diagramViewManager.clearAllViewProperties(diagram);
+		    diagramViewManager.clearAllViewProperties(diagram);
 
 			// 今選択しているIElemnetを取得する
 			List<IPresentation> selectedPresentations = Arrays.asList(diagramViewManager.getSelectedPresentations());
@@ -244,12 +257,31 @@ ListSelectionListener
 
 			// 選択しているユースケース図を解析して読み上げる
 			if(diagram instanceof IUseCaseDiagram){
-				messagePresentations = new UseCaseDiagramReader((IUseCaseDiagram)diagram)
+			    UseCaseDiagramReader udr = new UseCaseDiagramReader((IUseCaseDiagram)diagram);
+				messagePresentations = udr
 						.getMessagePresentation(
 						selectedPresentations,
 						showLoopOnlyButton.isSelected(),
 						showPNOnlyButton.isSelected()
 						);
+
+				// 色付けラジオボタンが押されているときには色付け
+				if(colorizeButton.isSelected()){
+				    for(Inga i: udr.getPositiveIngas()) {
+				        diagramViewManager.setViewProperty(
+				                i.p,
+				                IDiagramViewManager.LINE_COLOR,
+				                Color.BLUE
+				                );
+				    }
+				    for(Inga i: udr.getNegativeIngas()) {
+				        diagramViewManager.setViewProperty(
+				                i.p,
+				                IDiagramViewManager.LINE_COLOR,
+				                new Color(255,69,0) // OrangeRed
+				                );
+				    }
+				}
 
 				// メッセージをリストへ反映
 				textArea.setListData(
@@ -334,7 +366,11 @@ ListSelectionListener
 						color = Color.GREEN;
 					} else if(m.startsWith(Loop.BALANCING_NAME)) {
 						color = Color.RED;
-					}
+					} else if(m.startsWith(Inga.getPositiveString())) {
+					    color = Color.BLUE;
+                    } else if(m.startsWith(Inga.getNegativeString())) {
+                        color = new Color(255,69,0); // OrangeRed
+                    }
 
 					// 選択状態では要素選択時の更新処理を止める
 					modeListSelecting = true;

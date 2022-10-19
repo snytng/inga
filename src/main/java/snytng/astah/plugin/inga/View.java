@@ -301,7 +301,28 @@ ListSelectionListener
 		}
 	}
 
-	transient IDiagram selectedDiagram = null;
+    /**
+     * 表示を更新する
+     */
+    private void clearDiagramViewProperty(){
+        try {
+            // 今選択している図を取得する
+            IDiagram diagram = diagramViewManager.getCurrentDiagram();
+
+            // 図がなければ終了
+            if(diagram == null) {
+                return;
+            }
+
+            // モデルの一時的なビューをクリア
+            diagramViewManager.clearAllViewProperties(diagram);
+
+        }catch(Exception ex){
+            logger.log(Level.WARNING, ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
 
 	// IPluginExtraTabView
 	@Override
@@ -333,6 +354,7 @@ ListSelectionListener
 	@Override
 	public void deactivated() {
 		removeListeners();
+		clearDiagramViewProperty();
 	}
 
 	// ListSelectionListener

@@ -491,7 +491,7 @@ ListSelectionListener
 	}
 
 
-	// plugin設定
+	// 設定の保存・読込
 	private Properties props = new Properties();
 	private Path propsPath = null;
 
@@ -505,13 +505,6 @@ ListSelectionListener
 
         try {
             props.load(Files.newInputStream(propsPath));
-
-            System.out.println("props.load");
-            props.keySet().stream()
-            .map(String.class::cast)
-            .forEach(s -> {
-                System.out.println(s + "=" + props.getProperty(s));
-            });
 
             if(props.getProperty("colorizeButton") != null) {
                 colorizeButton.setSelected(Boolean.parseBoolean(props.getProperty("colorizeButton")));
@@ -549,13 +542,6 @@ ListSelectionListener
 	    if(key.equals("showPNOnlyButton")) {
 	        props.setProperty("showPNOnlyButton", Boolean.toString(showPNOnlyButton.isSelected()));
 	    }
-
-        System.out.println("props.store");
-        props.keySet().stream()
-        .map(String.class::cast)
-        .forEach(s -> {
-            System.out.println(s + "=" + props.getProperty(s));
-        });
 
 	    try {
             props.store(Files.newOutputStream(propsPath), "");

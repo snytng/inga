@@ -136,9 +136,9 @@ ListSelectionListener
 		return scrollPane;
 	}
 
-    JRadioButton colorizeButton = new JRadioButton("色づけ", false);
+    JRadioButton colorizeButton = new JRadioButton("リンク彩色", false);
 
-	JLabel            selectPNStringsLabel = new JLabel("記号");
+	JLabel            selectPNStringsLabel = new JLabel("リンク記号");
 	JComboBox<String> selectPNStrings = new JComboBox<>();
 
 	JLabel            selectPNSupplierLabel = new JLabel("リンク定義");
@@ -149,8 +149,11 @@ ListSelectionListener
 
 	private Container createControllerPane() {
 		// ボタンの説明追加
-		showLoopOnlyButton.setToolTipText("ループに含まれる要素のみを表示");
-		showPNOnlyButton.setToolTipText("自己強化・バランスの両方のループに含まれる要素のみを表示");
+	    colorizeButton.setToolTipText("オンにすると、因果ループ作成中にリンクに色付けします");
+	    selectPNStringsLabel.setToolTipText("因果リンクの増減を示す記号の表示文字列を選択します");
+	    selectPNSupplierLabel.setToolTipText("関連線をどのような因果リンクと判断するかを選択します");
+		showLoopOnlyButton.setToolTipText("オンにすると、ループに含まれる要素のみ表示する");
+		showPNOnlyButton.setToolTipText("オンにすると、自己強化・バランスの両方のループに含まれる要素のみ表示します");
 
 		colorizeButton.addChangeListener(e -> {
 		    updateDiagramView();
@@ -400,7 +403,7 @@ ListSelectionListener
 					// 選択した因果ループの要素を選択する
 					//diagramViewManager.select(ps);
 
-					// モデルに含まれるILinkPresentationを一時的に消す（グレーにする）
+					// モデルに含まれる要素を一時的に消す（グレーにする）
 					Color baseColor = Color.LIGHT_GRAY;
 					for(IPresentation p: currentDiagram.getPresentations()) {
 						if(p instanceof ILinkPresentation) {
@@ -408,6 +411,16 @@ ListSelectionListener
 									p,
 									IDiagramViewManager.LINE_COLOR,
 									baseColor);
+							IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
+							diagramViewManager.setViewProperty(
+							        nps,
+							        IDiagramViewManager.BORDER_COLOR,
+							        baseColor);
+							IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
+							diagramViewManager.setViewProperty(
+							        npt,
+							        IDiagramViewManager.BORDER_COLOR,
+							        baseColor);
 						}
 					}
 

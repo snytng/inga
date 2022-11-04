@@ -4,10 +4,15 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -93,6 +98,8 @@ ListSelectionListener
 		initProperties();
 
 		initComponents();
+
+        initSettings();
 	}
 
 	private void initProperties() {
@@ -157,31 +164,36 @@ ListSelectionListener
 
 		colorizeButton.addChangeListener(e -> {
 		    updateDiagramView();
+		    saveSettings("colorizeButton");
 		});
 
 		String[] comboPNStrings = Stream.of(Inga.PNStrings)
 				.map(pn -> String.join("", pn))
 				.toArray(String[]::new);
 		selectPNStrings = new JComboBox<>(comboPNStrings);
-		selectPNStrings.addActionListener(e -> {
+		selectPNStrings.addItemListener(e -> {
 			Inga.setPNStringIndex(selectPNStrings.getSelectedIndex());
 			updateDiagramView();
+            saveSettings("selectPNStrings");
 		});
 
 		String[] comboSupplier = Stream.of(UseCaseDiagramReader.IngaSuppliers)
 				.map(pn -> String.join("", pn))
 				.toArray(String[]::new);
 		selectPNSupplier = new JComboBox<>(comboSupplier);
-		selectPNSupplier.addActionListener(e -> {
+		selectPNSupplier.addItemListener(e -> {
 			UseCaseDiagramReader.setIngaSupplierIndex(selectPNSupplier.getSelectedIndex());
 			updateDiagramView();
+            saveSettings("selectPNSupplier");
 		});
 
 		showLoopOnlyButton.addChangeListener(e -> {
 			updateDiagramView();
+            saveSettings("showLoopOnlyButton");
 		});
 		showPNOnlyButton.addChangeListener(e -> {
 			updateDiagramView();
+            saveSettings("showPNOnlyButton");
 		});
 
 		JPanel panel = new JPanel();
@@ -268,7 +280,7 @@ ListSelectionListener
 						showPNOnlyButton.isSelected()
 						);
 
-				// 色付けラジオボタンが押されているときには色付け
+				// リンク彩色ラジオボタンが押されているときには彩色する
 				if(colorizeButton.isSelected()){
 				    for(Inga i: udr.getPositiveIngas()) {
 				        diagramViewManager.setViewProperty(
@@ -478,4 +490,77 @@ ListSelectionListener
 		// no action
 	}
 
+
+	// plugin設定
+	private Properties props = new Properties();
+	private Path propsPath = null;
+
+	private void initSettings() {
+        final String user_home = System.getProperty("user.home");
+        propsPath = Paths.get(user_home, ".astah-inga.properties");
+
+        if(Files.exists(propsPath) == false) {
+            return;
+        }
+
+        try {
+            props.load(Files.newInputStream(propsPath));
+
+            System.out.println("props.load");
+            props.keySet().stream()
+            .map(String.class::cast)
+            .forEach(s -> {
+                System.out.println(s + "=" + props.getProperty(s));
+            });
+
+            if(props.getProperty("colorizeButton") != null) {
+                colorizeButton.setSelected(Boolean.parseBoolean(props.getProperty("colorizeButton")));
+            }
+            if(props.getProperty("selectPNStrings") != null) {
+                selectPNStrings.setSelectedIndex(Integer.parseInt(props.getProperty("selectPNStrings")));
+            }
+            if(props.getProperty("selectPNSupplier") != null) {
+                selectPNSupplier.setSelectedIndex(Integer.parseInt(props.getProperty("selectPNSupplier")));
+            }
+            if(props.getProperty("showLoopOnlyButton") != null) {
+                showLoopOnlyButton.setSelected(Boolean.parseBoolean(props.getProperty("showLoopOnlyButton")));
+            }
+            if(props.getProperty("showPNOnlyButton") != null) {
+                showPNOnlyButton.setSelected(Boolean.parseBoolean(props.getProperty("showPNOnlyButton")));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+	}
+
+	private void saveSettings(String key) {
+	    if(key.equals("colorizeButton")) {
+	        props.setProperty("colorizeButton", Boolean.toString(colorizeButton.isSelected()));
+	    }
+	    if(key.equals("selectPNStrings")) {
+	        props.setProperty("selectPNStrings", Integer.toString(selectPNStrings.getSelectedIndex()));
+	    }
+	    if(key.equals("selectPNSupplier")) {
+	        props.setProperty("selectPNSupplier", Integer.toString(selectPNSupplier.getSelectedIndex()));
+	    }
+	    if(key.equals("showLoopOnlyButton")) {
+	        props.setProperty("showLoopOnlyButton", Boolean.toString(showLoopOnlyButton.isSelected()));
+	    }
+	    if(key.equals("showPNOnlyButton")) {
+	        props.setProperty("showPNOnlyButton", Boolean.toString(showPNOnlyButton.isSelected()));
+	    }
+
+        System.out.println("props.store");
+        props.keySet().stream()
+        .map(String.class::cast)
+        .forEach(s -> {
+            System.out.println(s + "=" + props.getProperty(s));
+        });
+
+	    try {
+            props.store(Files.newOutputStream(propsPath), "");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+	}
 }

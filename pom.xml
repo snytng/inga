@@ -11,7 +11,6 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>snytng.astah.plugin.inga</groupId>
 	<artifactId>inga</artifactId>
-	<version>0.3.2.a</version>
 	<packaging>bundle</packaging>
 	<pluginRepositories>
 		<pluginRepository>
@@ -284,4 +283,5 @@
 	</dependencies>
 	<name>%bundle.name</name>
 	<description>%bundle.description</description>
+	<version>0.3.3</version>
 </project>

@@ -391,70 +391,76 @@ ListSelectionListener
 				// 選択要素がある場合
 				IPresentation[] ps = messagePresentations.get(index).presentations;
 				if(ps != null) {
-					// メッセージの内容によって一時的に変更する色を設定する
-					String m = messagePresentations.get(index).message;
-					Color color = Color.MAGENTA;
-					if(m.startsWith(Loop.REINFORCING_NAME)) {
-						color = Color.GREEN;
-					} else if(m.startsWith(Loop.BALANCING_NAME)) {
-						color = Color.RED;
-					} else if(m.startsWith(Inga.getPositiveString())) {
-					    color = Color.BLUE;
-                    } else if(m.startsWith(Inga.getNegativeString())) {
-                        color = new Color(255,69,0); // OrangeRed
-                    }
 
-					// 選択状態では要素選択時の更新処理を止める
-					modeListSelecting = true;
+				    // 選択状態では要素選択時の更新処理を止める
+				    modeListSelecting = true;
 
-					// 選択した因果ループの要素を選択する
-					//diagramViewManager.select(ps);
+				    // 彩色オプションが有効なら要素に色を付ける
+				    if(colorizeButton.isSelected()) {
+				        // メッセージの内容によって一時的に変更する色を設定する
+				        String m = messagePresentations.get(index).message;
+				        Color color = Color.MAGENTA;
+				        if(m.startsWith(Loop.REINFORCING_NAME)) {
+				            color = Color.GREEN;
+				        } else if(m.startsWith(Loop.BALANCING_NAME)) {
+				            color = Color.RED;
+				        } else if(m.startsWith(Inga.getPositiveString())) {
+				            color = Color.BLUE;
+				        } else if(m.startsWith(Inga.getNegativeString())) {
+				            color = new Color(255,69,0); // OrangeRed
+				        }
 
-					// モデルに含まれる要素を一時的に消す（グレーにする）
-					Color baseColor = Color.LIGHT_GRAY;
-					for(IPresentation p: currentDiagram.getPresentations()) {
-						if(p instanceof ILinkPresentation) {
-							diagramViewManager.setViewProperty(
-									p,
-									IDiagramViewManager.LINE_COLOR,
-									baseColor);
-							IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
-							diagramViewManager.setViewProperty(
-							        nps,
-							        IDiagramViewManager.BORDER_COLOR,
-							        baseColor);
-							IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
-							diagramViewManager.setViewProperty(
-							        npt,
-							        IDiagramViewManager.BORDER_COLOR,
-							        baseColor);
-						}
-					}
+				        // モデルに含まれる要素を一時的に消す（グレーにする）
+				        Color baseColor = Color.LIGHT_GRAY;
+				        for(IPresentation p: currentDiagram.getPresentations()) {
+				            if(p instanceof ILinkPresentation) {
+				                diagramViewManager.setViewProperty(
+				                        p,
+				                        IDiagramViewManager.LINE_COLOR,
+				                        baseColor);
+				                IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
+				                diagramViewManager.setViewProperty(
+				                        nps,
+				                        IDiagramViewManager.BORDER_COLOR,
+				                        baseColor);
+				                IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
+				                diagramViewManager.setViewProperty(
+				                        npt,
+				                        IDiagramViewManager.BORDER_COLOR,
+				                        baseColor);
+				            }
+				        }
 
-					// ループの要素に一時的に色を付ける
-					for(IPresentation p: ps) {
-						if(p instanceof ILinkPresentation) {
-							diagramViewManager.setViewProperty(
-									p,
-									IDiagramViewManager.LINE_COLOR,
-									color);
-							IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
-							diagramViewManager.setViewProperty(
-									nps,
-									IDiagramViewManager.BORDER_COLOR,
-									color);
-							IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
-							diagramViewManager.setViewProperty(
-									npt,
-									IDiagramViewManager.BORDER_COLOR,
-									color);
-						}
-						if(p instanceof INodePresentation) {
-							diagramViewManager.setViewProperty(
-									p,
-									IDiagramViewManager.BORDER_COLOR,
-									color);
-						}
+				        // ループの要素に一時的に色を付ける
+				        for(IPresentation p: ps) {
+				            if(p instanceof ILinkPresentation) {
+				                diagramViewManager.setViewProperty(
+				                        p,
+				                        IDiagramViewManager.LINE_COLOR,
+				                        color);
+				                IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
+				                diagramViewManager.setViewProperty(
+				                        nps,
+				                        IDiagramViewManager.BORDER_COLOR,
+				                        color);
+				                IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
+				                diagramViewManager.setViewProperty(
+				                        npt,
+				                        IDiagramViewManager.BORDER_COLOR,
+				                        color);
+				            }
+				            if(p instanceof INodePresentation) {
+				                diagramViewManager.setViewProperty(
+				                        p,
+				                        IDiagramViewManager.BORDER_COLOR,
+				                        color);
+				            }
+				        }
+				    }
+					// 彩色オプションがオフなら選択する
+					else {
+	                    // 選択した因果ループの要素を選択する
+	                    diagramViewManager.select(ps);
 					}
 
 					// 選択状態を解除する

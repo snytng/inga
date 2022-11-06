@@ -7,7 +7,7 @@ import com.change_vision.jude.api.inf.presentation.INodePresentation;
 /**
  * Inga - cause and effect
  */
-class Inga {
+public class Inga {
 	ILinkPresentation p;
 	INodePresentation source;
 	INodePresentation target;
@@ -32,7 +32,7 @@ class Inga {
 		return ! positive;
 	}
 
-	static int nPNString = 0;
+	private static int nPNString = 0;
 	public static void setPNStringIndex(int n) {
 		nPNString = n % PNStrings.length;
 	}
@@ -44,21 +44,35 @@ class Inga {
 		{"S", "O"},
 		{"＋", "－"},
 		{"同", "逆"}
-		};
+	};
+
+	public static String getPositiveString() {
+	    return PNStrings[nPNString][POSITIVE_INDEX];
+	}
+
+    public static String getNegativeString() {
+        return PNStrings[nPNString][NEGATIVE_INDEX];
+    }
+
+	public String getArrowString() {
+	    if(positive){
+	        return "-(" + getPositiveString() + ")->";
+	    } else {
+	        return "-(" + getNegativeString() + ")->";
+	    }
+	}
 
 	public String toString(){
 		if(positive){
-			return PNStrings[nPNString][POSITIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が増える";
+			return String.format("%s「%s」が増えれば、「%s」が増える",
+			        PNStrings[nPNString][POSITIVE_INDEX],
+			        from.getName(),
+			        to.getName());
 		} else {
-			return PNStrings[nPNString][NEGATIVE_INDEX] + "「" + from.getName() + "」が増えれば、「" + to.getName() + "」が減る";
-		}
-	}
-
-	public String getArrowString() {
-		if(positive){
-			return "-(" + PNStrings[nPNString][POSITIVE_INDEX] + ")->";
-		} else {
-			return "-(" + PNStrings[nPNString][NEGATIVE_INDEX] + ")->";
+            return String.format("%s「%s」が増えれば、「%s」が減る",
+                    PNStrings[nPNString][NEGATIVE_INDEX],
+                    from.getName(),
+                    to.getName());
 		}
 	}
 

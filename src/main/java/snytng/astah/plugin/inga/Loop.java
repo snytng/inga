@@ -11,8 +11,7 @@ import com.change_vision.jude.api.inf.presentation.IPresentation;
 /**
  * Loop - the cyclic path of Ingas
  */
-@SuppressWarnings("serial")
-class Loop extends ArrayList<Inga> implements List<Inga> {
+public class Loop extends ArrayList<Inga> {
 	public static final String REINFORCING_NAME = "自己強化";
 	public static final String BALANCING_NAME = "バランス";
 

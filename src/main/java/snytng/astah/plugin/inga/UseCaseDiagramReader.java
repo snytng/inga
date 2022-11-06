@@ -40,44 +40,10 @@ public class UseCaseDiagramReader {
 		logger.setUseParentHandlers(false);
 	}
 
-	private static IUseCaseDiagram diagram = null;
+	private IUseCaseDiagram diagram = null;
 
 	public UseCaseDiagramReader(IUseCaseDiagram d) {
-		diagram = d;
-	}
-
-	static class LoopElement<T> {
-		private T element;
-		private List<Loop> loops = new ArrayList<>();
-
-		public LoopElement(T element, List<Loop> loops) {
-			this.element = element;
-			this.loops = loops;
-		}
-
-		public T getElement() {
-			return element;
-		}
-
-		public int numOfLoops() {
-			return loops.size();
-		}
-
-		public boolean hasLoop() {
-			return numOfLoops() > 0;
-		}
-
-		public int numOfPositiveLoops() {
-			return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
-		}
-
-		public int numOfNegativeLoops() {
-			return (int)loops.stream().filter(Loop::isBalancedLoop).count();
-		}
-
-		public boolean hasPostiveNegativeLoop() {
-			return (numOfPositiveLoops() > 0) && (numOfNegativeLoops() > 0);
-		}
+		this.diagram = d;
 	}
 
 	static int ingaSupplierIndex = 0;
@@ -135,7 +101,7 @@ public class UseCaseDiagramReader {
 	 * ユースケース図に含まれる方向を持った関連を取得する
 	 * @return IngaのSet
 	 */
-	static Set<Inga> getNavigableAssociations(){
+	Set<Inga> getNavigableAssociations(){
 		Set<Inga> ret = new HashSet<>();
 
 		try {
@@ -171,7 +137,7 @@ public class UseCaseDiagramReader {
 	 * ユースケース図に含まれる依存リンクを取得する
 	 * @return IngaのSet
 	 */
-	static Set<Inga> getDependencies(){
+	Set<Inga> getDependencies(){
 
 		Set<Inga> ret = new HashSet<>();
 
@@ -191,7 +157,7 @@ public class UseCaseDiagramReader {
 	 * ユースケース図に含まれる特定の関連名が入っているリンクを取得する
 	 * @return IngaのSet
 	 */
-	static Set<Inga> getAssociations(String relationName, boolean positive){
+	Set<Inga> getAssociations(String relationName, boolean positive){
 
 		Set<Inga> ret = new HashSet<>();
 
@@ -447,12 +413,12 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				String.format(
 						"%s: %d (自己強化=%d, バランス=%d)",
-						node.element.getLabel(),
+						node.getElement().getLabel(),
 						node.numOfLoops(),
 						node.numOfPositiveLoops(),
 						node.numOfNegativeLoops()
 						),
-				new IPresentation[]{node.element}))
+				new IPresentation[]{node.getElement()}))
 				);
 	}
 
@@ -462,12 +428,12 @@ public class UseCaseDiagramReader {
 		mps.add(new MessagePresentation(
 				String.format(
 						"%s: %d (自己強化=%d, バランス=%d)",
-						link.element.toString(),
+						link.getElement().toString(),
 						link.numOfLoops(),
 						link.numOfPositiveLoops(),
 						link.numOfNegativeLoops()
 						),
-				new IPresentation[]{link.element.p}))
+				new IPresentation[]{link.getElement().p}))
 				);
 	}
 

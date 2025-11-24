@@ -400,6 +400,12 @@ public class UseCaseDiagramReader {
 		}
 		simulationResults.put(from, sr);
 
+		// fromのINodePresentationから出ているIngaがなければ終了
+		if (ingaMap.get(from) == null) {
+			return;
+		}
+
+		// fromのINodePresentationから出ているIngaをたどる
 		ingaMap.get(from).stream()
 				.forEach(inga -> {
 					if (checkedIngaSet.contains(inga)) {

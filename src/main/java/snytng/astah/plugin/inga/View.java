@@ -43,15 +43,14 @@ import com.change_vision.jude.api.inf.view.IEntitySelectionListener;
 import com.change_vision.jude.api.inf.view.IProjectViewManager;
 
 public class View
-extends
-JPanel
-implements
-IPluginExtraTabView,
-IEntitySelectionListener,
-IDiagramEditorSelectionListener,
-ProjectEventListener,
-ListSelectionListener
-{
+		extends
+		JPanel
+		implements
+		IPluginExtraTabView,
+		IEntitySelectionListener,
+		IDiagramEditorSelectionListener,
+		ProjectEventListener,
+		ListSelectionListener {
 	/**
 	 * logger
 	 */
@@ -86,7 +85,7 @@ ListSelectionListener
 			projectAccessor = AstahAPI.getAstahAPI().getProjectAccessor();
 			diagramViewManager = projectAccessor.getViewManager().getDiagramViewManager();
 			projectViewManager = projectAccessor.getViewManager().getProjectViewManager();
-		} catch (ClassNotFoundException | InvalidUsingException e){
+		} catch (ClassNotFoundException | InvalidUsingException e) {
 			logger.log(Level.WARNING, e.getMessage());
 		}
 
@@ -94,14 +93,14 @@ ListSelectionListener
 
 		initComponents();
 
-        initSettings();
+		initSettings();
 	}
 
 	private void initProperties() {
 		try {
-			title       = VIEW_BUNDLE.getString("pluginExtraTabView.title");
+			title = VIEW_BUNDLE.getString("pluginExtraTabView.title");
 			description = VIEW_BUNDLE.getString("pluginExtraTabView.description");
-		}catch(Exception e){
+		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage());
 		}
 	}
@@ -113,14 +112,14 @@ ListSelectionListener
 		add(createLabelPane(), BorderLayout.CENTER);
 	}
 
-	private void addListeners(){
+	private void addListeners() {
 		diagramViewManager.addDiagramEditorSelectionListener(this);
 		diagramViewManager.addEntitySelectionListener(this);
 		projectViewManager.addEntitySelectionListener(this);
 		projectAccessor.addProjectEventListener(this);
 	}
 
-	private void removeListeners(){
+	private void removeListeners() {
 		diagramViewManager.removeDiagramEditorSelectionListener(this);
 		diagramViewManager.removeEntitySelectionListener(this);
 		projectViewManager.removeEntitySelectionListener(this);
@@ -129,37 +128,40 @@ ListSelectionListener
 
 	JList<String> textArea = null;
 	JScrollPane scrollPane = null;
+
 	private Container createLabelPane() {
 
-		textArea = new JList<>(new String[]{});
+		textArea = new JList<>(new String[] {});
 		textArea.addListSelectionListener(this);
 
 		scrollPane = new JScrollPane(textArea);
 		return scrollPane;
 	}
 
-    JRadioButton colorizeButton = new JRadioButton("リンク彩色", false);
+	JRadioButton colorizeButton = new JRadioButton("リンク彩色", false);
 
-	JLabel            selectPNStringsLabel = new JLabel("リンク記号");
+	JLabel selectPNStringsLabel = new JLabel("リンク記号");
 	JComboBox<String> selectPNStrings = new JComboBox<>();
 
-	JLabel            selectPNSupplierLabel = new JLabel("リンク定義");
+	JLabel selectPNSupplierLabel = new JLabel("リンク定義");
 	JComboBox<String> selectPNSupplier = new JComboBox<>();
+	JRadioButton startsWithPNLabelButton = new JRadioButton("前方一致", false);
 
 	JRadioButton showLoopOnlyButton = new JRadioButton("ループ要素のみ", false);
 	JRadioButton showPNOnlyButton = new JRadioButton("自己強化・バランスループ要素のみ", false);
 
 	private Container createControllerPane() {
 		// ボタンの説明追加
-	    colorizeButton.setToolTipText("オンにすると、因果ループ作成中にリンクに色付けします");
-	    selectPNStringsLabel.setToolTipText("因果リンクの増減を示す記号の表示文字列を選択します");
-	    selectPNSupplierLabel.setToolTipText("関連線をどのような因果リンクと判断するかを選択します");
+		colorizeButton.setToolTipText("オンにすると、因果ループ作成中にリンクに色付けします");
+		selectPNStringsLabel.setToolTipText("因果リンクの増減を示す記号の表示文字列を選択します");
+		selectPNSupplierLabel.setToolTipText("関連線をどのような因果リンクと判断するかを選択します");
+		startsWithPNLabelButton.setToolTipText("リンク文字列の一致を変更します。オフだと完全一致、オンだと前方一致にします。");
 		showLoopOnlyButton.setToolTipText("オンにすると、ループに含まれる要素のみ表示する");
 		showPNOnlyButton.setToolTipText("オンにすると、自己強化・バランスの両方のループに含まれる要素のみ表示します");
 
 		colorizeButton.addChangeListener(e -> {
-		    updateDiagramView();
-		    propUtil.saveSetting("colorizeButton", colorizeButton);
+			updateDiagramView();
+			propUtil.saveSetting("colorizeButton", colorizeButton);
 		});
 
 		String[] comboPNStrings = Stream.of(Inga.PNStrings)
@@ -180,6 +182,11 @@ ListSelectionListener
 			UseCaseDiagramReader.setIngaSupplierIndex(selectPNSupplier.getSelectedIndex());
 			updateDiagramView();
 			propUtil.saveSetting("selectPNSupplier", selectPNSupplier);
+		});
+		startsWithPNLabelButton.addChangeListener(e -> {
+			UseCaseDiagramReader.setStartsWithPNLabel(startsWithPNLabelButton.isSelected());
+			updateDiagramView();
+			propUtil.saveSetting("startsWithPNLabelButton", startsWithPNLabelButton);
 		});
 
 		showLoopOnlyButton.addChangeListener(e -> {
@@ -205,13 +212,13 @@ ListSelectionListener
 
 		centerPanel.add(selectPNSupplierLabel);
 		centerPanel.add(selectPNSupplier);
+		centerPanel.add(startsWithPNLabelButton);
 
 		eastPanel.add(showLoopOnlyButton);
 		eastPanel.add(showPNOnlyButton);
 
 		return panel;
 	}
-
 
 	static List<String> linkPresentationTypes = new ArrayList<>();
 	static {
@@ -235,7 +242,7 @@ ListSelectionListener
 	 */
 	@Override
 	public void entitySelectionChanged(IEntitySelectionEvent e) {
-		if(! modeListSelecting) {
+		if (!modeListSelecting) {
 			updateDiagramView();
 		}
 	}
@@ -246,18 +253,18 @@ ListSelectionListener
 	/**
 	 * 表示を更新する
 	 */
-	private void updateDiagramView(){
+	private void updateDiagramView() {
 		try {
 			// 今選択している図を取得する
 			IDiagram diagram = diagramViewManager.getCurrentDiagram();
 
 			// 図がなければ終了
-			if(diagram == null) {
-			    return;
+			if (diagram == null) {
+				return;
 			}
 
 			// モデルの一時的なビューをクリア
-		    diagramViewManager.clearAllViewProperties(diagram);
+			diagramViewManager.clearAllViewProperties(diagram);
 
 			// 今選択しているIElemnetを取得する
 			List<IPresentation> selectedPresentations = Arrays.asList(diagramViewManager.getSelectedPresentations());
@@ -266,73 +273,69 @@ ListSelectionListener
 			messagePresentations = new ArrayList<>();
 
 			// 選択しているユースケース図を解析して読み上げる
-			if(diagram instanceof IUseCaseDiagram){
-			    UseCaseDiagramReader udr = new UseCaseDiagramReader((IUseCaseDiagram)diagram);
+			if (diagram instanceof IUseCaseDiagram) {
+				UseCaseDiagramReader udr = new UseCaseDiagramReader((IUseCaseDiagram) diagram);
 				messagePresentations = udr
 						.getMessagePresentation(
-						selectedPresentations,
-						showLoopOnlyButton.isSelected(),
-						showPNOnlyButton.isSelected()
-						);
+								selectedPresentations,
+								showLoopOnlyButton.isSelected(),
+								showPNOnlyButton.isSelected());
 
 				// リンク彩色ラジオボタンが押されているときには彩色する
-				if(colorizeButton.isSelected()){
-				    for(Inga i: udr.getPositiveIngas()) {
-				        diagramViewManager.setViewProperty(
-				                i.p,
-				                IDiagramViewManager.LINE_COLOR,
-				                Color.BLUE
-				                );
-				    }
-				    for(Inga i: udr.getNegativeIngas()) {
-				        diagramViewManager.setViewProperty(
-				                i.p,
-				                IDiagramViewManager.LINE_COLOR,
-				                new Color(255,69,0) // OrangeRed
-				                );
-				    }
+				if (colorizeButton.isSelected()) {
+					for (Inga i : udr.getPositiveIngas()) {
+						diagramViewManager.setViewProperty(
+								i.p,
+								IDiagramViewManager.LINE_COLOR,
+								Color.BLUE);
+					}
+					for (Inga i : udr.getNegativeIngas()) {
+						diagramViewManager.setViewProperty(
+								i.p,
+								IDiagramViewManager.LINE_COLOR,
+								new Color(255, 69, 0) // OrangeRed
+						);
+					}
 				}
 
 				// メッセージをリストへ反映
 				textArea.setListData(
 						messagePresentations.stream()
-						.map(mp -> mp.message)
-						.toArray(String[]::new)
-						);
+								.map(mp -> mp.message)
+								.toArray(String[]::new));
 			}
 			// それ以外はなにもしない
 			else {
 				// no action
 			}
 
-		}catch(Exception ex){
+		} catch (Exception ex) {
 			logger.log(Level.WARNING, ex.getMessage());
 			ex.printStackTrace();
 		}
 	}
 
-    /**
-     * 表示を更新する
-     */
-    private void clearDiagramViewProperty(){
-        try {
-            // 今選択している図を取得する
-            IDiagram diagram = diagramViewManager.getCurrentDiagram();
+	/**
+	 * 表示を更新する
+	 */
+	private void clearDiagramViewProperty() {
+		try {
+			// 今選択している図を取得する
+			IDiagram diagram = diagramViewManager.getCurrentDiagram();
 
-            // 図がなければ終了
-            if(diagram == null) {
-                return;
-            }
+			// 図がなければ終了
+			if (diagram == null) {
+				return;
+			}
 
-            // モデルの一時的なビューをクリア
-            diagramViewManager.clearAllViewProperties(diagram);
+			// モデルの一時的なビューをクリア
+			diagramViewManager.clearAllViewProperties(diagram);
 
-        }catch(Exception ex){
-            logger.log(Level.WARNING, ex.getMessage());
-            ex.printStackTrace();
-        }
-    }
-
+		} catch (Exception ex) {
+			logger.log(Level.WARNING, ex.getMessage());
+			ex.printStackTrace();
+		}
+	}
 
 	// IPluginExtraTabView
 	@Override
@@ -370,19 +373,19 @@ ListSelectionListener
 	// ListSelectionListener
 	@Override
 	public void valueChanged(ListSelectionEvent e) {
-		if(e.getValueIsAdjusting()){ // 操作中
+		if (e.getValueIsAdjusting()) { // 操作中
 			return;
 		}
 
 		int index = textArea.getSelectedIndex();
 		logger.log(Level.FINE, () -> "textArea selected index=" + index);
 
-		if(index < 0){ // 選択項目がない場合（indexは-1になる）は処理しない
+		if (index < 0) { // 選択項目がない場合（indexは-1になる）は処理しない
 			return;
 		}
 
 		// 選択項目のPresentationを因果として表示する
-		if(messagePresentations != null) {
+		if (messagePresentations != null) {
 			try {
 				// モデルの一時的なビューをクリア
 				IDiagram currentDiagram = diagramViewManager.getCurrentDiagram();
@@ -390,77 +393,77 @@ ListSelectionListener
 
 				// 選択要素がある場合
 				IPresentation[] ps = messagePresentations.get(index).presentations;
-				if(ps != null) {
+				if (ps != null) {
 
-				    // 選択状態では要素選択時の更新処理を止める
-				    modeListSelecting = true;
+					// 選択状態では要素選択時の更新処理を止める
+					modeListSelecting = true;
 
-				    // 彩色オプションが有効なら要素に色を付ける
-				    if(colorizeButton.isSelected()) {
-				        // メッセージの内容によって一時的に変更する色を設定する
-				        String m = messagePresentations.get(index).message;
-				        Color color = Color.MAGENTA;
-				        if(m.startsWith(Loop.REINFORCING_NAME)) {
-				            color = Color.GREEN;
-				        } else if(m.startsWith(Loop.BALANCING_NAME)) {
-				            color = Color.RED;
-				        } else if(m.startsWith(Inga.getPositiveString())) {
-				            color = Color.BLUE;
-				        } else if(m.startsWith(Inga.getNegativeString())) {
-				            color = new Color(255,69,0); // OrangeRed
-				        }
+					// 彩色オプションが有効なら要素に色を付ける
+					if (colorizeButton.isSelected()) {
+						// メッセージの内容によって一時的に変更する色を設定する
+						String m = messagePresentations.get(index).message;
+						Color color = Color.MAGENTA;
+						if (m.startsWith(Loop.REINFORCING_NAME)) {
+							color = Color.GREEN;
+						} else if (m.startsWith(Loop.BALANCING_NAME)) {
+							color = Color.RED;
+						} else if (m.startsWith(Inga.getPositiveString())) {
+							color = Color.BLUE;
+						} else if (m.startsWith(Inga.getNegativeString())) {
+							color = new Color(255, 69, 0); // OrangeRed
+						}
 
-				        // モデルに含まれる要素を一時的に消す（グレーにする）
-				        Color baseColor = Color.LIGHT_GRAY;
-				        for(IPresentation p: currentDiagram.getPresentations()) {
-				            if(p instanceof ILinkPresentation) {
-				                diagramViewManager.setViewProperty(
-				                        p,
-				                        IDiagramViewManager.LINE_COLOR,
-				                        baseColor);
-				                IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
-				                diagramViewManager.setViewProperty(
-				                        nps,
-				                        IDiagramViewManager.BORDER_COLOR,
-				                        baseColor);
-				                IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
-				                diagramViewManager.setViewProperty(
-				                        npt,
-				                        IDiagramViewManager.BORDER_COLOR,
-				                        baseColor);
-				            }
-				        }
+						// モデルに含まれる要素を一時的に消す（グレーにする）
+						Color baseColor = Color.LIGHT_GRAY;
+						for (IPresentation p : currentDiagram.getPresentations()) {
+							if (p instanceof ILinkPresentation) {
+								diagramViewManager.setViewProperty(
+										p,
+										IDiagramViewManager.LINE_COLOR,
+										baseColor);
+								IPresentation nps = ((ILinkPresentation) p).getSourceEnd();
+								diagramViewManager.setViewProperty(
+										nps,
+										IDiagramViewManager.BORDER_COLOR,
+										baseColor);
+								IPresentation npt = ((ILinkPresentation) p).getTargetEnd();
+								diagramViewManager.setViewProperty(
+										npt,
+										IDiagramViewManager.BORDER_COLOR,
+										baseColor);
+							}
+						}
 
-				        // ループの要素に一時的に色を付ける
-				        for(IPresentation p: ps) {
-				            if(p instanceof ILinkPresentation) {
-				                diagramViewManager.setViewProperty(
-				                        p,
-				                        IDiagramViewManager.LINE_COLOR,
-				                        color);
-				                IPresentation nps = ((ILinkPresentation)p).getSourceEnd();
-				                diagramViewManager.setViewProperty(
-				                        nps,
-				                        IDiagramViewManager.BORDER_COLOR,
-				                        color);
-				                IPresentation npt = ((ILinkPresentation)p).getTargetEnd();
-				                diagramViewManager.setViewProperty(
-				                        npt,
-				                        IDiagramViewManager.BORDER_COLOR,
-				                        color);
-				            }
-				            if(p instanceof INodePresentation) {
-				                diagramViewManager.setViewProperty(
-				                        p,
-				                        IDiagramViewManager.BORDER_COLOR,
-				                        color);
-				            }
-				        }
-				    }
+						// ループの要素に一時的に色を付ける
+						for (IPresentation p : ps) {
+							if (p instanceof ILinkPresentation) {
+								diagramViewManager.setViewProperty(
+										p,
+										IDiagramViewManager.LINE_COLOR,
+										color);
+								IPresentation nps = ((ILinkPresentation) p).getSourceEnd();
+								diagramViewManager.setViewProperty(
+										nps,
+										IDiagramViewManager.BORDER_COLOR,
+										color);
+								IPresentation npt = ((ILinkPresentation) p).getTargetEnd();
+								diagramViewManager.setViewProperty(
+										npt,
+										IDiagramViewManager.BORDER_COLOR,
+										color);
+							}
+							if (p instanceof INodePresentation) {
+								diagramViewManager.setViewProperty(
+										p,
+										IDiagramViewManager.BORDER_COLOR,
+										color);
+							}
+						}
+					}
 					// 彩色オプションがオフなら選択する
 					else {
-	                    // 選択した因果ループの要素を選択する
-	                    diagramViewManager.select(ps);
+						// 選択した因果ループの要素を選択する
+						diagramViewManager.select(ps);
 					}
 
 					// 選択状態を解除する
@@ -474,7 +477,6 @@ ListSelectionListener
 	}
 
 	transient boolean modeListSelecting = false;
-
 
 	@Override
 	public void projectChanged(ProjectEvent arg0) {
@@ -491,18 +493,18 @@ ListSelectionListener
 		// no action
 	}
 
-
 	// 設定の保存・読込
 	private PropertiesUtil propUtil = new PropertiesUtil(".astah-inga.properties");
-    private void initSettings() {
-        propUtil.readPropertiesFromFile();
 
-        propUtil.readSetting("colorizeButton",      colorizeButton);
-        propUtil.readSetting("selectPNStrings",     selectPNStrings);
-        propUtil.readSetting("selectPNSupplier",    selectPNSupplier);
-        propUtil.readSetting("showLoopOnlyButton",  showLoopOnlyButton);
-        propUtil.readSetting("showPNOnlyButton",    showPNOnlyButton);
-    }
+	private void initSettings() {
+		propUtil.readPropertiesFromFile();
 
+		propUtil.readSetting("colorizeButton", colorizeButton);
+		propUtil.readSetting("selectPNStrings", selectPNStrings);
+		propUtil.readSetting("selectPNSupplier", selectPNSupplier);
+		propUtil.readSetting("showLoopOnlyButton", showLoopOnlyButton);
+		propUtil.readSetting("showPNOnlyButton", showPNOnlyButton);
+		propUtil.readSetting("startsWithPNLabelButton", startsWithPNLabelButton);
+	}
 
 }

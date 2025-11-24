@@ -25,15 +25,14 @@ public class LoopElement<T> {
     }
 
     public int numOfPositiveLoops() {
-        return (int)loops.stream().filter(Loop::isReinforcingLoop).count();
+        return (int) loops.stream().filter(Loop::isReinforcingLoop).count();
     }
 
     public int numOfNegativeLoops() {
-        return (int)loops.stream().filter(Loop::isBalancedLoop).count();
+        return (int) loops.stream().filter(Loop::isBalancedLoop).count();
     }
 
-    public boolean hasPostiveNegativeLoop() {
+    public boolean hasPostiveAndNegativeLoop() {
         return (numOfPositiveLoops() > 0) && (numOfNegativeLoops() > 0);
     }
 }
-

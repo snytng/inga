@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "astah: clean compile",
+            "type": "shell",
+            "command": "${config:maven.executable.path}",
+            "args": [
+                "clean",
+                "compile"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "astah: comple launch",
+            "type": "shell",
+            "command": "${config:maven.executable.path}",
+            "args": [
+                "compile",
+                "com.change_vision.astah:astah-maven-plugin:1.0.0:launch"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}
+    

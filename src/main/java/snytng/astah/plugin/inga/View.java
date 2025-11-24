@@ -266,14 +266,15 @@ public class View
 			// モデルの一時的なビューをクリア
 			diagramViewManager.clearAllViewProperties(diagram);
 
-			// 今選択しているIElemnetを取得する
-			List<IPresentation> selectedPresentations = Arrays.asList(diagramViewManager.getSelectedPresentations());
-
 			// メッセージとプレゼンテーションをリセット
 			messagePresentations = new ArrayList<>();
 
 			// 選択しているユースケース図を解析して読み上げる
 			if (diagram instanceof IUseCaseDiagram) {
+				// 今選択しているIElemnetを取得する
+				List<IPresentation> selectedPresentations = Arrays
+						.asList(diagramViewManager.getSelectedPresentations());
+
 				UseCaseDiagramReader udr = new UseCaseDiagramReader((IUseCaseDiagram) diagram);
 				messagePresentations = udr
 						.getMessagePresentation(

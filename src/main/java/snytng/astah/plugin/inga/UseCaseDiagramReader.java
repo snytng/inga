@@ -373,10 +373,17 @@ public class UseCaseDiagramReader {
 	static boolean simPositive = true;
 
 	private static void recordSimulation(List<MessagePresentation> mps, IPresentation startPresentation) {
-		if (!(startPresentation instanceof INodePresentation)) {
+		if (!(startPresentation instanceof INodePresentation || startPresentation instanceof ILinkPresentation)) {
 			return;
 		}
 
+		// startPresentationがILinkPresentationの場合は、ソースノードに変更
+		if (startPresentation instanceof ILinkPresentation) {
+			ILinkPresentation lp = (ILinkPresentation) startPresentation;
+			startPresentation = lp.getSource();
+		}
+
+		// シミュレーション開始ノード
 		INodePresentation np = (INodePresentation) startPresentation;
 		Map<INodePresentation, SimulationResult> simulationResults = new LinkedHashMap<>();
 
@@ -412,6 +419,12 @@ public class UseCaseDiagramReader {
 		}
 		simulationResults.put(from, sr);
 
+		// fromのINodePresentationから出ているIngaがなければ終了
+		if (ingaMap.get(from) == null) {
+			return;
+		}
+
+		// fromのINodePresentationから出ているIngaをたどる
 		ingaMap.get(from).stream()
 				.forEach(inga -> {
 					if (checkedIngaSet.contains(inga)) {

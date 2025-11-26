@@ -177,14 +177,18 @@ public class UseCaseDiagramReader {
 						IAttribute targetAttr = attrs[1];
 						if (sourceAttr.getNavigability().equals("Unspecified") &&
 								targetAttr.getNavigability().equals("Navigable")) {
-							// no action
+							ret.add(new Inga(lp, source, target, positive));
 						} else if (sourceAttr.getNavigability().equals("Navigable") &&
 								targetAttr.getNavigability().equals("Unspecified")) {
-							INodePresentation temp = target;
-							target = source;
-							source = temp;
+							ret.add(new Inga(lp, target, source, positive));
+						} else {
+							logger.log(Level.FINE,
+									"Association " + a.getName() + " is not Inga.");
+							logger.log(Level.FINE,
+									"source " + lp.getSource() + ":navigability=" + sourceAttr.getNavigability());
+							logger.log(Level.FINE,
+									"target " + lp.getTarget() + ":navigability=" + targetAttr.getNavigability());
 						}
-						ret.add(new Inga(lp, source, target, positive));
 					});
 		} catch (Exception e) {
 			logger.log(Level.WARNING, e.getMessage());

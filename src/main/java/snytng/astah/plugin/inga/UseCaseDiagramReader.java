@@ -181,13 +181,6 @@ public class UseCaseDiagramReader {
 						} else if (sourceAttr.getNavigability().equals("Navigable") &&
 								targetAttr.getNavigability().equals("Unspecified")) {
 							ret.add(new Inga(lp, target, source, positive));
-						} else {
-							logger.log(Level.FINE,
-									"Association " + a.getName() + " is not Inga.");
-							logger.log(Level.FINE,
-									"source " + lp.getSource() + ":navigability=" + sourceAttr.getNavigability());
-							logger.log(Level.FINE,
-									"target " + lp.getTarget() + ":navigability=" + targetAttr.getNavigability());
 						}
 					});
 		} catch (Exception e) {

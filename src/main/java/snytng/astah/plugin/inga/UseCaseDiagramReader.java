@@ -272,14 +272,14 @@ public class UseCaseDiagramReader {
 		IPresentation startPresentation = selectedPresentations.isEmpty() ? null : selectedPresentations.get(0);
 		recordLoop(loopMps, startPresentation);
 
-		// 選択されている要素があれば含まれているものだけを表示する
+		// 選択されている要素がすべて含まれているループだけを表示する
 		if (!selectedPresentations.isEmpty()) {
 			List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
 			for (MessagePresentation mp : loopMps){
 				if (
 					// 選択されている要素が含まれていれば表示する
 					selectedPresentations.stream()
-						.anyMatch(p -> Arrays.asList(mp.presentations).contains(p))
+						.allMatch(p -> Arrays.asList(mp.presentations).contains(p))
 					){
 						selectedMessagePresentation.add(mp);
 					}

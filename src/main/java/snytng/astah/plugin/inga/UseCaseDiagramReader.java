@@ -267,66 +267,94 @@ public class UseCaseDiagramReader {
 
 		updateIngas(diagram, showLoopOnly, showPNOnly);
 
-		List<MessagePresentation> mps = new ArrayList<>();
-
-		recordBar(mps, "ループ");
-		// 選択されている要素を先頭にループ表示
+		// 選択されている1つ目の要素を先頭にループ表示
+		List<MessagePresentation> loopMps = new ArrayList<>();
 		IPresentation startPresentation = selectedPresentations.isEmpty() ? null : selectedPresentations.get(0);
-		recordLoop(mps, startPresentation);
-
-		recordBar(mps, "リンク");
-		recordLink(mps);
-		recordBar(mps, "ノード");
-		recordNode(mps);
+		recordLoop(loopMps, startPresentation);
 
 		// 選択されている要素があれば含まれているものだけを表示する
 		if (!selectedPresentations.isEmpty()) {
 			List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
-
-			for (int i = 0; i < mps.size(); i++) {
-				MessagePresentation mp = mps.get(i);
-
+			for (MessagePresentation mp : loopMps){
 				if (
-				// nullだったら表示
-				mp.presentations == null
+					// 選択されている要素が含まれていれば表示する
+					selectedPresentations.stream()
+						.anyMatch(p -> Arrays.asList(mp.presentations).contains(p))
+					){
+						selectedMessagePresentation.add(mp);
+					}
+			}
+			loopMps = selectedMessagePresentation;
+		}
 
-						// 選択しているIPresentationと同じだったら表示
-						||
-						selectedPresentations.stream()
-								.anyMatch(p -> Stream.of(mp.presentations)
-										.anyMatch(x -> x == p))
+		// リンクを表示
+		List<MessagePresentation> linkMps = new ArrayList<>();
+		recordLink(linkMps);
+		
+		// 選択されている要素があれば含まれているものだけを表示する
+		if (!selectedPresentations.isEmpty()) {
+			List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
+			for (MessagePresentation mp : linkMps){
+				if (
+					// 選択されている要素が含まれていれば表示する
+					selectedPresentations.stream()
+						.anyMatch(p -> Arrays.asList(mp.presentations).contains(p))
+					||
+					// ノードを選択していたら、つながっているILinkPresentationを表示
+					selectedPresentations.stream()
+						.filter(INodePresentation.class::isInstance)
+						.map(INodePresentation.class::cast)
+						.anyMatch(np -> Arrays.stream(mp.presentations)
+							.filter(ILinkPresentation.class::isInstance)
+							.map(ILinkPresentation.class::cast)
+							.anyMatch(l -> l.getTarget().equals(np) || l.getSource().equals(np)))
+					){
+						selectedMessagePresentation.add(mp);
+					}
+			}
+			linkMps = selectedMessagePresentation;
+		}
 
-						// ノードを選択していたら、つながっているILinkPresentationを表示
-						||
-						selectedPresentations.stream()
-								.filter(INodePresentation.class::isInstance)
-								.map(INodePresentation.class::cast)
-								.anyMatch(np -> Stream.of(mp.presentations)
-										.filter(ILinkPresentation.class::isInstance)
-										.map(ILinkPresentation.class::cast)
-										.anyMatch(l -> l.getTarget().equals(np) || l.getSource().equals(np)))
+		// ノードを表示
+		List<MessagePresentation> nodeMps = new ArrayList<>();
+		recordNode(nodeMps);
 
-						// リンクを選択していたら、つながっているINodePresentationを表示
-						||
-						selectedPresentations.stream()
+		// 選択されている要素があれば含まれているものだけを表示する
+		if (!selectedPresentations.isEmpty()) {
+			List<MessagePresentation> selectedMessagePresentation = new ArrayList<>();
+			for (MessagePresentation mp : nodeMps){
+				if (
+					// 選択しているIPresentationと同じだったら表示
+					selectedPresentations.stream()
+								.anyMatch(p -> Arrays.asList(mp.presentations).contains(p))
+					||
+					// リンクを選択していたら、つながっているINodePresentationを表示
+					selectedPresentations.stream()
 								.filter(ILinkPresentation.class::isInstance)
 								.map(ILinkPresentation.class::cast)
-								.anyMatch(lp -> Stream.of(mp.presentations)
-										.filter(INodePresentation.class::isInstance)
-										.map(INodePresentation.class::cast)
-										.anyMatch(np -> np.equals(lp.getTarget()) || np.equals(lp.getSource())))
-
-				) {
-
-					selectedMessagePresentation.add(mp);
-				}
+								.anyMatch(lp -> Arrays.stream(mp.presentations)
+									.filter(INodePresentation.class::isInstance)
+									.map(INodePresentation.class::cast)
+									.anyMatch(np -> np.equals(lp.getTarget()) || np.equals(lp.getSource())))
+					){
+						selectedMessagePresentation.add(mp);
+					}
 			}
-			mps = selectedMessagePresentation;
+			nodeMps = selectedMessagePresentation;
+		}
 
+		// ループ、リンク、ノード、シミュレーション結果を結合して返す
+		List<MessagePresentation> mps = new ArrayList<>();
+		recordBar(mps, "ループ");
+		mps.addAll(loopMps);
+		recordBar(mps, "リンク");
+		mps.addAll(linkMps);
+		recordBar(mps, "ノード");
+		mps.addAll(nodeMps);
+		if (startPresentation != null){
 			// シミュレーション結果は常に表示する
 			recordBar(mps, "シミュレーション");
 			recordSimulation(mps, startPresentation);
-
 		}
 
 		return mps;
